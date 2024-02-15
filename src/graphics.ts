@@ -24,6 +24,7 @@ export interface Game extends ResourceListener {
     keyDown(key: string): void;
     keyUp(key: string): void;
     resourcesLoaded(): void;
+    render(): void;
 }
 
 document.addEventListener('contextmenu', event => {
@@ -110,11 +111,24 @@ canvas.addEventListener("mouseup", (event) => {
 
 const scaledImageCache: Record<string, Record<number, CanvasImageSource>> = {};
 
+function loop(game: Game): void {
+    // give the utility classes a chance to update based on 
+    // screen size etc
+    graphics.update();
+
+    game.render();
+    
+    requestAnimationFrame(() => { loop(game) });
+}
+
 export const graphics = {
     // register an event listener for mouse/touch events
-    registerGame(game: Game): void {
+    startRendering(game: Game): void {
         eventListener = game;
         resources.registerResourceListener(game);
+
+        // start the rendering loop
+        requestAnimationFrame(() => { loop(game) });
     },
 
     width(): number {

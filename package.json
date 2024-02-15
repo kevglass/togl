@@ -1,0 +1,25 @@
+{
+  "name": "togl",
+  "version": "1.0.0",
+  "description": "Tiny Open Game Library",
+  "main": "dist/index.js",
+  "exports": {
+    ".": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kevglass/togl.git"
+  },
+  "author": "Kevin Glass",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/kevglass/togl/issues"
+  },
+  "homepage": "https://github.com/kevglass/togl#readme",
+  "dependencies": {
+    "typescript": "^5.3.3"
+  }
+}

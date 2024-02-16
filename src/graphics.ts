@@ -10,12 +10,18 @@ const canvas = document.getElementById("gamecanvas") as HTMLCanvasElement;
 let eventListener: Game | undefined;
 let mouseDown = false;
 
+export interface GameImage {
+    id: string;
+    width: number;
+    height: number;
+}
+
 // a tile set cuts an imag into pieces to be used as sprites
 export interface TileSet {
-    image: HTMLImageElement;
+    image: GameImage;
     tileWidth: number;
     tileHeight: number;
-    tiles: CanvasImageSource[];
+    tiles: GameImage[];
 }
 
 // a hook back for mouse/touch events
@@ -124,7 +130,7 @@ function loop(game: Game): void {
 export interface Renderer {
     init(canvas: HTMLCanvasElement): Renderer;
 
-    loadImage(url: string, track: boolean): HTMLImageElement 
+    loadImage(url: string, track: boolean): GameImage 
 
     // load an image and store it with tileset information
     loadTileSet(url: string, tw: number, th: number): TileSet;
@@ -150,7 +156,7 @@ export interface Renderer {
     fillRect(x: number, y: number, width: number, height: number, col: string): void;
 
     // draw an image to the canvas 
-    drawImage(image: HTMLImageElement, x: number, y: number, width: number, height: number): void;
+    drawImage(image: GameImage, x: number, y: number, width: number, height: number): void;
 
     // store the current 'state' of the canvas. This includes transforms, alphas, clips etc
     push(): void;
@@ -194,7 +200,7 @@ export const graphics = {
         return canvas.height;
     },
 
-    loadImage(url: string, track = true): HTMLImageElement {
+    loadImage(url: string, track = true): GameImage {
         return currentRenderer.loadImage(url, track);
     },
 
@@ -249,7 +255,7 @@ export const graphics = {
     },
 
     // draw an image to the canvas 
-    drawImage(image: HTMLImageElement, x: number, y: number, width: number, height: number): void {
+    drawImage(image: GameImage, x: number, y: number, width: number, height: number): void {
         currentRenderer.drawImage(image, x, y, width, height);
     },
 

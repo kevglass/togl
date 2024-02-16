@@ -1,4 +1,4 @@
-import { Renderer, TileSet, graphics } from "./graphics";
+import { GameImage, Renderer, TileSet, graphics } from "./graphics";
 import { resources } from "./resources";
 
 // This is a very brute force simple renderer. It's just blitting images and text to 
@@ -65,9 +65,9 @@ export const canvasRenderer: Renderer = {
             tileImage = tiles.tiles[tile] = document.createElement("canvas");
             tileImage.width = tiles.tileWidth;
             tileImage.height = tiles.tileHeight;
-            tileImage.getContext("2d")?.drawImage(tiles.image, tx, ty, tiles.tileWidth, tiles.tileHeight, 0, 0, tiles.tileWidth, tiles.tileHeight);
+            (tileImage as HTMLCanvasElement).getContext("2d")?.drawImage(tiles.image as CanvasImageSource, tx, ty, tiles.tileWidth, tiles.tileHeight, 0, 0, tiles.tileWidth, tiles.tileHeight);
         }
-        ctx.drawImage(tileImage, x, y);
+        ctx.drawImage(tileImage as CanvasImageSource, x, y);
     },
 
     outlineText(x: number, y: number, str: string, size: number, col: string, outline: string, outlineWidth: number): void {
@@ -114,7 +114,7 @@ export const canvasRenderer: Renderer = {
     },
 
     // draw an image to the canvas 
-    drawImage(image: HTMLImageElement, x: number, y: number, width: number, height: number): void {
+    drawImage(image: GameImage, x: number, y: number, width: number, height: number): void {
         x = Math.floor(x);
         y = Math.floor(y);
         width = Math.floor(width);
@@ -130,7 +130,7 @@ export const canvasRenderer: Renderer = {
                 cachedScaled = scaledImageCache[image.id][width + (height * 10000)] = document.createElement("canvas");
                 cachedScaled.width = width;
                 cachedScaled.height = height;
-                cachedScaled.getContext("2d")?.drawImage(image, 0, 0, width, height);
+                cachedScaled.getContext("2d")?.drawImage(image as HTMLImageElement, 0, 0, width, height);
             }
 
             ctx.drawImage(cachedScaled, x, y);

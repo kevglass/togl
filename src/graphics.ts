@@ -14,6 +14,7 @@ export interface TileSet {
     image: HTMLImageElement;
     tileWidth: number;
     tileHeight: number;
+    tiles: CanvasImageSource[];
 }
 
 // a hook back for mouse/touch events
@@ -174,21 +175,26 @@ export const graphics = {
             resources.resourceLoaded(url);
         }
 
-        return { image, tileWidth: tw, tileHeight: th };
+        return { image, tileWidth: tw, tileHeight: th, tiles: [] };
     },
 
     // Draw a single tile from a tile set by default at its natural size
-    drawTile(tiles: TileSet, x: number, y: number, tile: number, width: number = tiles.tileWidth, height: number = tiles.tileHeight): void {
+    drawTile(tiles: TileSet, x: number, y: number, tile: number): void {
         x = Math.floor(x);
         y = Math.floor(y);
-        width = Math.floor(width);
-        height = Math.floor(height);
     
         const tw = Math.floor(tiles.image.width / tiles.tileWidth);
         const tx = (tile % tw) * tiles.tileWidth;
         const ty = Math.floor(tile / tw) * tiles.tileHeight;
 
-        ctx.drawImage(tiles.image, tx, ty, tiles.tileWidth, tiles.tileHeight, x, y, width, height);
+        let tileImage = tiles.tiles[tile];
+        if (!tileImage) {
+            tileImage = tiles.tiles[tile] = document.createElement("canvas");
+            tileImage.width = tiles.tileWidth;
+            tileImage.height = tiles.tileHeight;
+            tileImage.getContext("2d")?.drawImage(tiles.image, tx, ty, tiles.tileWidth, tiles.tileHeight, 0, 0, tiles.tileWidth, tiles.tileHeight);
+        }
+        ctx.drawImage(tileImage, x, y);
     },
 
     outlineText(x: number, y: number, str: string, size: number, col: string, outline: string, outlineWidth: number): void {

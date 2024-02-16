@@ -236,8 +236,13 @@ export const graphics = {
 
     // give the graphics to do anything it needs to do per frame
     update(): void {
-        canvas.width = Math.floor(window.innerWidth);
-        canvas.height = Math.floor(window.innerHeight);
+        const screenWidth = Math.floor(window.innerWidth);
+        const screenHeight = Math.floor(window.innerHeight);
+
+        if (canvas.width !== screenWidth || canvas.height !== screenHeight) {
+            canvas.width = screenWidth;
+            canvas.height = screenHeight;
+        }
     },
 
     // fill a rectangle to the canvas

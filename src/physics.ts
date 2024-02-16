@@ -145,6 +145,14 @@ export const physics = {
     worldStep(fps: number, world: PhysicsWorld) {
         const objects = world.objects;
 
+        for (let i = objects.length; i--;) {
+            // Update position/rotation
+            objects[i].velocity = physics.addVec2(objects[i].velocity, physics.scale(objects[i].acceleration, 1 / fps));
+            physics.moveShape(objects[i], physics.scale(objects[i].velocity, 1 / fps));
+            objects[i].angularVelocity += objects[i].angularAcceleration * 1 / fps;
+            physics.rotateShape(objects[i], objects[i].angularVelocity * 1 / fps);
+        }
+
         // Compute collisions
         for (let k = 9; k--;) {
             for (let i = objects.length; i--;) {
@@ -172,14 +180,6 @@ export const physics = {
                     }
                 }
             }
-        }
-
-        for (let i = objects.length; i--;) {
-            // Update position/rotation
-            objects[i].velocity = physics.addVec2(objects[i].velocity, physics.scale(objects[i].acceleration, 1 / fps));
-            physics.moveShape(objects[i], physics.scale(objects[i].velocity, 1 / fps));
-            objects[i].angularVelocity += objects[i].angularAcceleration * 1 / fps;
-            physics.rotateShape(objects[i], objects[i].angularVelocity * 1 / fps);
         }
     },
 

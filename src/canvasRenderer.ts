@@ -6,10 +6,21 @@ import { resources } from "./resources";
 let ctx: CanvasRenderingContext2D;
 const scaledImageCache: Record<string, Record<number, CanvasImageSource>> = {};
 
+declare let InstallTrigger: any;
+var isFirefox = typeof InstallTrigger !== 'undefined';
+
 
 export const canvasRenderer: Renderer = {
-    init(canvas: HTMLCanvasElement): Renderer {
-        ctx = canvas.getContext("2d", { alpha: false }) as CanvasRenderingContext2D;
+    init(canvas: HTMLCanvasElement, pixelatedRenderingEnabled: boolean): Renderer {
+        ctx = canvas.getContext("2d") as CanvasRenderingContext2D;
+
+        if (pixelatedRenderingEnabled) {
+            if (isFirefox) {
+              canvas.style.imageRendering = "crisp-edges";
+            } else {
+              canvas.style.imageRendering = "pixelated";
+            }
+        }
 
         return canvasRenderer;
     },
@@ -153,7 +164,7 @@ export const canvasRenderer: Renderer = {
     rotate(ang: number): void {
         ctx.rotate(ang);
     },
-    
+
     initResourceOnLoaded: function (): void {
     }
 }

@@ -195,6 +195,8 @@ let currentRenderer: Renderer;
 
 export const graphics = {
     init(rendererType: RendererType, pixelatedRenderingEnabled = false): void {
+        console.log("TOGL Renderer: " + rendererType + " (pixelated = "+pixelatedRenderingEnabled+")");
+        
         if (rendererType === RendererType.CANVAS) {
             currentRenderer = canvasRenderer.init(canvas, pixelatedRenderingEnabled);
         }

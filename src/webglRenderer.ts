@@ -60,8 +60,12 @@ interface RenderState {
     rotation: number;
 }
 
+let pixelatedRendering = false;
+
 export const webglRenderer: Renderer = {
-    init(c: HTMLCanvasElement): Renderer {
+    init(c: HTMLCanvasElement, pixelatedRenderingEnabled: boolean): Renderer {
+        pixelatedRendering = pixelatedRenderingEnabled;
+
         canvas = c;
         transformCanvas = document.createElement("canvas");
         transformCtx = transformCanvas.getContext("2d")!;
@@ -75,7 +79,7 @@ export const webglRenderer: Renderer = {
             recoverContext();
         }, false);
 
-        gl = c.getContext('experimental-webgl', { antialias: false, alpha: false, preserveDrawingBuffer: false }) as WebGLRenderingContext;
+        gl = c.getContext('webgl', { powerPreference: "high-performance" }) as WebGLRenderingContext;
         initGlResources();
         return webglRenderer;
     },
@@ -604,35 +608,37 @@ function newResourceLoaded(): void {
 }
 
 function _initResourceOnLoaded(): void {
-
-    const textureSize = Math.min(gl.getParameter(gl.MAX_TEXTURE_SIZE), 4096 * 2);
+    // use a small texture size so it represents textures on low end android 
+    const textureSize = 2048; // Math.min(gl.getParameter(gl.MAX_TEXTURE_SIZE), 4096 * 2);
 
     let list = [...bitmaps];
     list.sort((a, b) => a.height > b.height ? -1 : 1);
 
     const placed: WebGLBitmap[] = [];
     placed.push({ id: "fake", texX: 0, texY: 0, width: 1, height: 1, texIndex: -1 })
-    const records = list.map(image => { return { image: image, w: image.width, h: image.height } });
+    let records = list.map(image => { return { image: image, w: image.width, h: image.height } });
+    const tooBig = records.filter(r => r.w > textureSize || r.h > textureSize);
+    tooBig.forEach(r => console.log(r.image.id+" is too big for small textures: " + r.w + "x" + r.h));
 
+    records = records.filter(r => r.w <= textureSize && r.h <= textureSize);
+    
     let base = 0;
-    let step = 20;
+    let step = 1;
     let textureCount = 0;
     for (let i = 0; i < records.length; i += step) {
         let { w, h, fill } = potpack(records.slice(base, i));
         if (w > textureSize || h > textureSize) {
-            let { w, h, fill } = potpack(records.slice(base, i - step));
-            records.slice(base, i - step).forEach(record => record.image.texIndex = textureCount);
-            // console.log(base + " -> " + (i - step - 1) + " = " + w + "x" + h);
-            base = i - step;
+            let { w, h, fill } = potpack(records.slice(base, i-1));
+            records.slice(base, i-1).forEach(record => record.image.texIndex = textureCount);
+            base = i-1;
             textureCount++;
         }
     }
     let { w, h, fill } = potpack(records.slice(base, records.length));
     records.slice(base, records.length).forEach(record => record.image.texIndex = textureCount);
-    // console.log(base + " -> " + (records.length - 1) + " = " + w + "x" + h);
     textureCount++;
 
-    console.log("[WEBGL] Reloading textures (packed into " + textureCount + " textures)");
+    console.log("[WEBGL] Reloading textures (packed into " + textureCount + " textures - size " + textureSize + ")");
     for (const record of records) {
         record.image.texX = (record as any).x + 1;
         record.image.texY = (record as any).y;
@@ -662,12 +668,18 @@ function _initResourceOnLoaded(): void {
 
             for (const image of list.filter(lImage => lImage.texIndex === i)) {
                 if (image.image) {
+                    image.texIndex = i;
                     gl.texSubImage2D(gl.TEXTURE_2D, 0, image.texX, image.texY, gl.RGBA, gl.UNSIGNED_BYTE, image.image);
                 }
             }
 
             gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+            if (pixelatedRendering) {
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+            } else {
+                gl.generateMipmap(gl.TEXTURE_2D);
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
+            }
 
             texWidth = textureSize;
             texHeight = textureSize;

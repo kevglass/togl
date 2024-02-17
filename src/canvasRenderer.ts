@@ -6,6 +6,7 @@ import { resources } from "./resources";
 let ctx: CanvasRenderingContext2D;
 const scaledImageCache: Record<string, Record<number, CanvasImageSource>> = {};
 
+
 export const canvasRenderer: Renderer = {
     init(canvas: HTMLCanvasElement): Renderer {
         ctx = canvas.getContext("2d", { alpha: false }) as CanvasRenderingContext2D;
@@ -13,7 +14,15 @@ export const canvasRenderer: Renderer = {
         return canvasRenderer;
     },
 
-    loadImage(url: string, track = true): HTMLImageElement {
+    preRender(): void {
+
+    },
+
+    postRender(): void {
+
+    },
+
+    loadImage(url: string, track = true, id?: string): HTMLImageElement {
         if (track) {
             resources.resourceRequested(url);
         }
@@ -21,32 +30,36 @@ export const canvasRenderer: Renderer = {
         image.src = url;
         image.onerror = () => {
             console.log("Failed to load: " + url);
-        }
+        };
         image.onload = () => {
-            image.id = url;
+            image.id = id ?? url;
             scaledImageCache[image.id] = {};
             scaledImageCache[image.id][image.width + (image.height * 10000)] = image;
 
             if (track) {
                 resources.resourceLoaded(url);
             }
-        }
+        };
 
         return image;
     },
 
     // load an image and store it with tileset information
-    loadTileSet(url: string, tw: number, th: number): TileSet {
+    loadTileSet(url: string, tw: number, th: number, id?: string): TileSet {
         resources.resourceRequested(url);
 
         const image = new Image();
         image.src = url;
         image.onerror = () => {
             console.log("Failed to load: " + url);
-        }
+        };
         image.onload = () => {
+            image.id = id ?? url;
+            scaledImageCache[image.id] = {};
+            scaledImageCache[image.id][image.width + (image.height * 10000)] = image;
+
             resources.resourceLoaded(url);
-        }
+        };
 
         return { image, tileWidth: tw, tileHeight: th, tiles: [] };
     },
@@ -55,7 +68,7 @@ export const canvasRenderer: Renderer = {
     drawTile(tiles: TileSet, x: number, y: number, tile: number): void {
         x = Math.floor(x);
         y = Math.floor(y);
-    
+
         const tw = Math.floor(tiles.image.width / tiles.tileWidth);
         const tx = (tile % tw) * tiles.tileWidth;
         const ty = Math.floor(tile / tw) * tiles.tileHeight;
@@ -69,23 +82,7 @@ export const canvasRenderer: Renderer = {
         }
         ctx.drawImage(tileImage as CanvasImageSource, x, y);
     },
-
-    outlineText(x: number, y: number, str: string, size: number, col: string, outline: string, outlineWidth: number): void {
-        canvasRenderer.drawText(x - outlineWidth, y - outlineWidth, str, size, outline);
-        canvasRenderer.drawText(x + outlineWidth, y - outlineWidth, str, size, outline);
-        canvasRenderer.drawText(x - outlineWidth, y + outlineWidth, str, size, outline);
-        canvasRenderer.drawText(x + outlineWidth, y + outlineWidth, str, size, outline);
-
-        canvasRenderer.drawText(x, y, str, size, col);
-    },
-
-    // draw text at the given location 
-    drawText(x: number, y: number, str: string, size: number, col: string): void {
-        ctx.fillStyle = col;
-        ctx.font = "bold " + size + "px \"Fira Sans\", sans-serif";
-        ctx.fillText(str, x, y);
-    },
-
+    
     // draw a rectangle outlined to the canvas
     drawRect(x: number, y: number, width: number, height: number, col: string): void {
         ctx.fillStyle = col;
@@ -95,18 +92,6 @@ export const canvasRenderer: Renderer = {
         ctx.fillRect(x + width - 1, y, 1, height);
     },
 
-    // determine the width of a string when rendered at a given size
-    textWidth(text: string, size: number) {
-        ctx.font = "bold " + size + "px \"Fira Sans\", sans-serif";
-        return ctx.measureText(text).width;
-    },
-
-    // draw a string onto the canvas centring it on the screen
-    centerText(text: string, size: number, y: number, col: string): void {
-        const cx = Math.floor(graphics.width() / 2);
-        canvasRenderer.drawText(cx - (canvasRenderer.textWidth(text, size) / 2), y, text, size, col);
-    },
-
     // fill a rectangle to the canvas
     fillRect(x: number, y: number, width: number, height: number, col: string) {
         ctx.fillStyle = col;
@@ -114,12 +99,12 @@ export const canvasRenderer: Renderer = {
     },
 
     // draw an image to the canvas 
-    drawImage(image: GameImage, x: number, y: number, width: number, height: number): void {
+    drawImage(image: GameImage, x: number, y: number, width?: number, height?: number): void {
         x = Math.floor(x);
         y = Math.floor(y);
-        width = Math.floor(width);
-        height = Math.floor(height);
-        
+        width = width ? Math.floor(width) : image.width;
+        height = height ? Math.floor(height) : image.height;
+
         if (image.id) {
             if (width === 0) {
                 return;
@@ -164,22 +149,6 @@ export const canvasRenderer: Renderer = {
     scale(x: number, y: number): void {
         ctx.scale(x, y);
     },
-
-    rotate(ang: number): void {
-        ctx.rotate(ang);
-    },
-
-    fillCircle(x: number, y: number, radius: number, col: string): void {
-        ctx.fillStyle = col;
-        ctx.beginPath();
-        ctx.arc(x, y, radius, 0, Math.PI * 2);
-        ctx.fill();
-    },
-
-    halfCircle(x: number, y: number, radius: number, col: string): void {
-        ctx.fillStyle = col;
-        ctx.beginPath();
-        ctx.arc(x, y, radius, Math.PI, 0);
-        ctx.fill();
-    },
+    initResourceOnLoaded: function (): void {
+    }
 }

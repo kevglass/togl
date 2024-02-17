@@ -22,6 +22,7 @@
   },
   "homepage": "https://github.com/kevglass/togl#readme",
   "dependencies": {
+    "potpack": "^2.0.0",
     "typescript": "^5.3.3"
   }
 }

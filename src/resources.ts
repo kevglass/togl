@@ -1,3 +1,5 @@
+import { graphics } from "./graphics";
+
 export interface ResourceListener {
     resourcesLoaded(): void;
 }
@@ -21,13 +23,12 @@ export const resources = {
 
     resourceRequested(url: string): void {
         resourcesRequested++;
-        console.log("Loading: ", url);
     },
 
     resourceLoaded(url: string): void {
         resourcesLoaded++;
-        console.log("Loaded: ", url);
         if (resourcesLoaded >= resourcesRequested) {
+            graphics.initResourceOnLoaded();
             resourceListener?.resourcesLoaded();
         }
     },

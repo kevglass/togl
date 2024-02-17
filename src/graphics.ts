@@ -179,6 +179,8 @@ export interface Renderer {
     // translate the rendering context by a given amount
     translate(x: number, y: number): void;
 
+    rotate(ang: number): void;
+
     // scale the rendering context by a given amount
     scale(x: number, y: number): void;
 
@@ -403,6 +405,10 @@ export const graphics = {
     // scale the rendering context by a given amount
     scale(x: number, y: number): void {
         currentRenderer.scale(x, y);
+    },
+
+    rotate(ang: number): void {
+        currentRenderer.rotate(ang);
     },
 
     initResourceOnLoaded(): void {

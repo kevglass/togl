@@ -12,6 +12,7 @@ let shaderProgram: WebGLProgram | undefined;
 let glBuffer: WebGLBuffer | null;
 let maxDraws = 10000;
 let positions: Int16Array;
+let rotations: Float32Array;
 let rgbas: Uint32Array;
 let draws: number = 0;
 let atlasTextures: WebGLTexture[] | null = null;
@@ -21,9 +22,25 @@ let texWidth = 0;
 let texHeight = 0;
 let saves = 0;
 
+const floatsPerImageRotation = 1;
+const shortsPerImagePosition = 2
+const shortsPerImageSize = 2
+const shortsPerImageTexPos = 4
+const bytesPerImageRgba = 4
+
+const bytesPerImage = shortsPerImagePosition * 2 +
+    shortsPerImageSize * 2 +
+    shortsPerImageTexPos * 2 +
+    bytesPerImageRgba + 4 * floatsPerImageRotation;
+
+
 let currentContextState: RenderState = {
-    alpha: 255
+    alpha: 255,
+    scaleX: 1,
+    scaleY: 1,
+    rotation: 0
 }
+let renderStates: RenderState[] = [];
 
 let bitmaps: WebGLBitmap[] = [];
 
@@ -38,6 +55,9 @@ interface WebGLBitmap extends GameImage {
 
 interface RenderState {
     alpha: number;
+    scaleX: number;
+    scaleY: number;
+    rotation: number;
 }
 
 export const webglRenderer: Renderer = {
@@ -148,6 +168,14 @@ export const webglRenderer: Renderer = {
     },
 
     preRender(): void {
+        currentContextState = {
+            alpha: 255,
+            scaleX: 1,
+            scaleY: 1,
+            rotation: 0
+        };
+        renderStates = [];
+
         renderStart();
     },
 
@@ -182,10 +210,12 @@ export const webglRenderer: Renderer = {
     push(): void {
         saves++;
         transformCtx.save();
+        renderStates.push({ ...currentContextState });
     },
     pop(): void {
         saves--;
         transformCtx.restore();
+        currentContextState = renderStates.splice(renderStates.length - 1, 1)[0];
         resetState();
     },
     alpha(alpha: number): void {
@@ -196,6 +226,11 @@ export const webglRenderer: Renderer = {
     },
     scale(x: number, y: number): void {
         transformCtx.scale(x, y);
+        currentContextState.scaleX = x;
+        currentContextState.scaleY = y;
+    },
+    rotate(ang: number): void {
+        currentContextState.rotation = ang;
     },
     initResourceOnLoaded: function (): void {
         _initResourceOnLoaded();
@@ -209,15 +244,9 @@ function initGlResources(): void {
     gl.enable(gl.BLEND);
     gl.disable(gl.DEPTH_TEST);
 
-    const shortsPerImagePosition = 2
-    const shortsPerImageSize = 2
-    const shortsPerImageTexPos = 4
-    const bytesPerImageRgba = 4
-
-    const bytesPerImage = shortsPerImagePosition * 2 + shortsPerImageSize * 2 + shortsPerImageTexPos * 2 + bytesPerImageRgba;
-
     arrayBuffer = new ArrayBuffer(maxDraws * bytesPerImage)
     positions = new Int16Array(arrayBuffer)
+    rotations = new Float32Array(arrayBuffer);
     rgbas = new Uint32Array(arrayBuffer)
 
     const vertCode = "\
@@ -226,6 +255,7 @@ function initGlResources(): void {
         attribute vec2 aSize;\
         attribute vec4 aTexPos;\
         attribute vec4 aRgba;\
+        attribute float aRotation;\
         \
         varying highp vec2 fragTexturePos;\
         varying vec4 fragAbgr;\
@@ -234,8 +264,16 @@ function initGlResources(): void {
         uniform vec2 uTexSize;\
         \
         void main(void){\
-            gl_Position.x = ( (aPos.x + (aSize.x * aSizeMult.x) ) / uCanvasSize.x ) - 1.0; \
-            gl_Position.y = 1.0 -  ( (aPos.y + (aSize.y * aSizeMult.y) ) / uCanvasSize.y ); \
+            vec2 drawPos;\
+            if (aRotation != 0.0){\
+                float goX = cos(aRotation);\
+                float goY = sin(aRotation);\
+                vec2 cornerPos = aSize * (aSizeMult);\
+                drawPos = (aPos + vec2(goX*cornerPos.x - goY*cornerPos.y, goY*cornerPos.x + goX*cornerPos.y)) / uCanvasSize;\
+            } else {\
+                drawPos = (aPos + aSize*aSizeMult) / uCanvasSize;\
+            }\
+            gl_Position = vec4(drawPos.x - 1.0, 1.0 - drawPos.y, 0.0, 1.0);\
             gl_Position.z = 0.0; \
             gl_Position.w = 1.0; \
             \
@@ -252,7 +290,10 @@ function initGlResources(): void {
     const vertShader = gl.createShader(gl.VERTEX_SHADER) as WebGLShader
     gl.shaderSource(vertShader, vertCode)
     gl.compileShader(vertShader)
-
+    let output = gl.getShaderInfoLog(vertShader);
+    if (output) {
+        console.log(output);
+    }
     // Fragment shader source code.
     const fragCode = "\
         varying highp vec2 fragTexturePos;\
@@ -267,12 +308,20 @@ function initGlResources(): void {
     const fragShader = gl.createShader(gl.FRAGMENT_SHADER) as WebGLShader;
     gl.shaderSource(fragShader, fragCode);
     gl.compileShader(fragShader);
+    output = gl.getShaderInfoLog(fragShader);
+    if (output) {
+        console.log(output);
+    }
 
     shaderProgram = gl.createProgram() as WebGLProgram
     gl.attachShader(shaderProgram, vertShader);
     gl.attachShader(shaderProgram, fragShader);
     gl.linkProgram(shaderProgram);
     gl.useProgram(shaderProgram);
+    output = gl.getProgramInfoLog(shaderProgram);
+    if (output) {
+        console.log(output);
+    }
 
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, gl.createBuffer())
     gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint8Array([0, 1, 2, 2, 1, 3]), gl.STATIC_DRAW)
@@ -313,6 +362,7 @@ function initGlResources(): void {
     setupAttribute("aSize", gl.SHORT, shortsPerImageSize);
     setupAttribute("aTexPos", gl.SHORT, shortsPerImageTexPos);
     setupAttribute("aRgba", gl.UNSIGNED_BYTE, bytesPerImageRgba);
+    setupAttribute("aRotation", gl.FLOAT, floatsPerImageRotation)
 }
 
 function parseColor(input: string): number[] {
@@ -656,7 +706,6 @@ function resize() {
 
 function resetState(): void {
     gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
-    currentContextState.alpha = 255;
 }
 
 function getError(): string | undefined {
@@ -692,7 +741,7 @@ function glStartContext(): void {
 
 function glCommitContext(): void {
     if (draws > 0 && rgbas && extension) {
-        gl.bufferSubData(gl.ARRAY_BUFFER, 0, rgbas.subarray(0, draws * 5));
+        gl.bufferSubData(gl.ARRAY_BUFFER, 0, rgbas.subarray(0, draws * 6));
         extension.drawElementsInstancedANGLE(gl.TRIANGLES, 6, gl.UNSIGNED_BYTE, 0, draws);
         draws = 0;
     }
@@ -718,7 +767,7 @@ function _drawImage(texIndex: number, texX: number, texY: number, texWidth: numb
         glStartContext();
     }
 
-    let i = draws * 5;
+    let i = draws * 6;
 
     // clamp alpha to prevent overflow
     if (alpha > 255) {
@@ -726,7 +775,15 @@ function _drawImage(texIndex: number, texX: number, texY: number, texWidth: numb
     }
 
     rgbas[i + 4] = rgba | alpha;
+    rotations[i + 5] = currentContextState.rotation * Math.sign(currentContextState.scaleX) * Math.sign(currentContextState.scaleY);
     i *= 2;
+
+    if (currentContextState.rotation) {
+        const dist = Math.sqrt(drawX * drawX + drawY * drawY);
+        const angle = Math.atan2(drawY, drawX);
+        drawX = Math.cos(angle + currentContextState.rotation) * dist;
+        drawY = Math.sin(angle + currentContextState.rotation) * dist;
+    }
 
     let drawX2 = drawX + width;
     let drawY2 = drawY + height;

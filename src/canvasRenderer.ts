@@ -149,6 +149,11 @@ export const canvasRenderer: Renderer = {
     scale(x: number, y: number): void {
         ctx.scale(x, y);
     },
+
+    rotate(ang: number): void {
+        ctx.rotate(ang);
+    },
+    
     initResourceOnLoaded: function (): void {
     }
 }

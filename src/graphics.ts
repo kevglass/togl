@@ -148,7 +148,7 @@ function loop(game: Game): void {
 }
 
 export interface Renderer {
-    init(canvas: HTMLCanvasElement): Renderer;
+    init(canvas: HTMLCanvasElement, pixelatedRenderingEnabled: boolean): Renderer;
 
     loadImage(url: string, track: boolean, id?: string): GameImage
 
@@ -192,12 +192,12 @@ export interface Renderer {
 let currentRenderer: Renderer;
 
 export const graphics = {
-    init(rendererType: RendererType): void {
+    init(rendererType: RendererType, pixelatedRenderingEnabled = false): void {
         if (rendererType === RendererType.CANVAS) {
-            currentRenderer = canvasRenderer.init(canvas);
+            currentRenderer = canvasRenderer.init(canvas, pixelatedRenderingEnabled);
         }
         if (rendererType === RendererType.WEBGL) {
-            currentRenderer = webglRenderer.init(canvas);
+            currentRenderer = webglRenderer.init(canvas, pixelatedRenderingEnabled);
         }
     },
 

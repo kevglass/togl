@@ -144,6 +144,12 @@ function loop(game: Game): void {
 
     currentRenderer.postRender();
 
+    frameCount++;
+    if (Date.now() - lastFPS > 1000) {
+        fps = frameCount;
+        frameCount = 0;
+        lastFPS = Date.now();
+    }
     requestAnimationFrame(() => { loop(game) });
 }
 
@@ -192,6 +198,9 @@ export interface Renderer {
 }
 
 let currentRenderer: Renderer;
+let lastFPS: number = 0;
+let frameCount: number = 0;
+let fps: number = 0;
 
 export const graphics = {
     init(rendererType: RendererType, pixelatedRenderingEnabled = false): void {
@@ -214,6 +223,10 @@ export const graphics = {
         requestAnimationFrame(() => { loop(game) });
     },
 
+    getFPS(): number {
+        return fps;
+    },
+    
     width(): number {
         return canvas.width;
     },

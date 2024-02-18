@@ -261,7 +261,7 @@ function initGlResources(): void {
         attribute vec4 aRgba;\
         attribute float aRotation;\
         \
-        varying highp vec2 fragTexturePos;\
+        varying vec2 fragTexturePos;\
         varying vec4 fragAbgr;\
         \
         uniform vec2 uCanvasSize;\
@@ -608,15 +608,14 @@ function newResourceLoaded(): void {
 }
 
 function _initResourceOnLoaded(): void {
-    // use a small texture size so it represents textures on low end android 
-    const textureSize = 2048; // Math.min(gl.getParameter(gl.MAX_TEXTURE_SIZE), 4096 * 2);
+    const textureSize = Math.min(gl.getParameter(gl.MAX_TEXTURE_SIZE), 4096 * 2);
 
     let list = [...bitmaps];
     list.sort((a, b) => a.height > b.height ? -1 : 1);
 
     const placed: WebGLBitmap[] = [];
     placed.push({ id: "fake", texX: 0, texY: 0, width: 1, height: 1, texIndex: -1 })
-    let records = list.map(image => { return { image: image, w: image.width, h: image.height } });
+    let records = list.map(image => { return { image: image, w: image.width+2, h: image.height+2 } });
     const tooBig = records.filter(r => r.w > textureSize || r.h > textureSize);
     tooBig.forEach(r => console.log(r.image.id+" is too big for small textures: " + r.w + "x" + r.h));
 
@@ -638,7 +637,7 @@ function _initResourceOnLoaded(): void {
     records.slice(base, records.length).forEach(record => record.image.texIndex = textureCount);
     textureCount++;
 
-    console.log("[WEBGL] Reloading textures (packed into " + textureCount + " textures - size " + textureSize + ")");
+    console.log("[WEBGL] Reloading textures (packed into " + textureCount + " textures - size " + textureSize + " - max: " + getMaxTextureSize() + ")");
     for (const record of records) {
         record.image.texX = (record as any).x + 1;
         record.image.texY = (record as any).y;
@@ -759,11 +758,6 @@ function glCommitContext(): void {
     }
 }
 
-function _drawBitmap(img: WebGLBitmap, x: number, y: number, width: number, height: number, col: number = 0xFFFFFF00): void {
-    _drawImage(img.texIndex, img.texX, img.texY, img.width, img.height, x, y, width, height, col,
-        currentContextState.alpha);
-}
-
 function _drawImage(texIndex: number, texX: number, texY: number, texWidth: number, texHeight: number, drawX: number, drawY: number, width: number, height: number, rgba: number, alpha: number) {
     if (!atlasTextures) {
         return;
@@ -810,6 +804,11 @@ function _drawImage(texIndex: number, texX: number, texY: number, texWidth: numb
     drawY = Math.floor(drawY);
     drawX2 = Math.floor(drawX2);
     drawY2 = Math.floor(drawY2);
+
+    texX = Math.floor(texX);
+    texY = Math.floor(texY);
+    texWidth = Math.floor(texWidth);
+    texHeight = Math.floor(texHeight);
 
     width = drawX2 - drawX;
     height = drawY2 - drawY;

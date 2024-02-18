@@ -198,6 +198,10 @@ export const canvasRenderer: Renderer = {
         ctx.drawImage((offscreen as CanvasOffscreen).canvas, x, y);
     },
 
+    drawOffscreenSection(offscreen: Offscreen, x: number, y: number, sx: number, sy: number, width: number, height: number): void {
+        ctx.drawImage((offscreen as CanvasOffscreen).canvas, x, y, width, height, sx, sy, width, height);
+    },
+
     drawToOffscreen(offscreen: Offscreen): void {
         ctx = (offscreen as CanvasOffscreen).ctx;
         canvasRenderer.push();

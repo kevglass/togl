@@ -272,6 +272,23 @@ export const webglRenderer: Renderer = {
         return offscreen;
     },
 
+
+    drawOffscreenSection(o: Offscreen, x: number, y: number, sx: number, sy: number, width: number, height: number): void {
+        const offscreen: WebGLOffscreen = o as WebGLOffscreen;
+
+        glCommitContext();
+
+        glStartContext();
+        gl.uniform2f(getUniformLoc("uTexSize"), offscreen.width, offscreen.height);
+        gl.bindTexture(gl.TEXTURE_2D, offscreen.texture);
+        _drawImage(-100, sx, offscreen.height - sy, width, -height, x, y, width, height, 0xFFFFFF00, currentContextState.alpha);
+        glCommitContext();
+
+        gl.uniform2f(getUniformLoc("uTexSize"), texWidth, texHeight);
+        gl.bindTexture(gl.TEXTURE_2D, currentTexture);
+        glStartContext();
+    },
+
     drawOffscreen(o: Offscreen, x: number, y: number): void {
         const offscreen: WebGLOffscreen = o as WebGLOffscreen;
 

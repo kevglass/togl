@@ -207,6 +207,8 @@ export interface Renderer {
 
     drawOffscreen(offscreen: Offscreen, x: number, y: number): void;
 
+    drawOffscreenSection(offscreen: Offscreen, x: number, y: number, sx: number, sy: number, width: number, height: number): void;
+
     drawToOffscreen(offscreen: Offscreen): void;
 
     drawToMain(): void;
@@ -461,6 +463,10 @@ export const graphics = {
 
     drawOffscreen(offscreen: Offscreen, x: number, y: number): void {
         currentRenderer.drawOffscreen(offscreen, x, y);
+    },
+
+    drawOffscreenSection(offscreen: Offscreen, x: number, y: number, sx: number, sy: number, width: number, height: number): void {
+        currentRenderer.drawOffscreenSection(offscreen, x, y, sx, sy, width, height);
     },
 
     drawToOffscreen(offscreen: Offscreen): void {

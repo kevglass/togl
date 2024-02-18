@@ -1,18 +1,24 @@
-import { GameImage, Renderer, TileSet, graphics } from "./graphics";
+import { GameImage, Offscreen, Renderer, TileSet, graphics } from "./graphics";
 import { resources } from "./resources";
 
 // This is a very brute force simple renderer. It's just blitting images and text to 
 // a canvas. It's wrapped with a view to replacing it with something decent
 let ctx: CanvasRenderingContext2D;
+let mainCtx: CanvasRenderingContext2D;
+
 const scaledImageCache: Record<string, Record<number, CanvasImageSource>> = {};
 
 declare let InstallTrigger: any;
 var isFirefox = typeof InstallTrigger !== 'undefined';
 
+interface CanvasOffscreen extends Offscreen {
+    canvas: HTMLCanvasElement;
+    ctx: CanvasRenderingContext2D;
+}
 
 export const canvasRenderer: Renderer = {
     init(canvas: HTMLCanvasElement, pixelatedRenderingEnabled: boolean): Renderer {
-        ctx = canvas.getContext("2d") as CanvasRenderingContext2D;
+        mainCtx = ctx = canvas.getContext("2d") as CanvasRenderingContext2D;
 
         if (pixelatedRenderingEnabled) {
             if (isFirefox) {
@@ -166,5 +172,47 @@ export const canvasRenderer: Renderer = {
     },
 
     initResourceOnLoaded: function (): void {
-    }
+    },
+    
+    createOffscreen(width: number, height: number): Offscreen {
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d")!;
+
+        const offscreen: CanvasOffscreen = {
+            width,
+            height,
+            canvas,
+            ctx
+        };
+
+        return offscreen;
+    },
+
+    getDrawCount(): number {
+        return 0;
+    },
+
+    drawOffscreen(offscreen: Offscreen, x: number, y: number): void {
+        ctx.drawImage((offscreen as CanvasOffscreen).canvas, x, y);
+    },
+
+    drawToOffscreen(offscreen: Offscreen): void {
+        ctx = (offscreen as CanvasOffscreen).ctx;
+        canvasRenderer.push();
+    },
+
+    drawToMain(): void {
+        canvasRenderer.pop();
+        ctx = mainCtx;
+    },
+    
+    ready(): boolean {
+        return true;
+    },
+
+    clearRect(x: number, y: number, width: number, height: number): void {
+        ctx.clearRect(x,y,width,height);
+    },
 }

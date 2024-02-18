@@ -1,5 +1,5 @@
 import potpack from "potpack";
-import { GameImage, Renderer, TileSet } from "./graphics";
+import { GameImage, Offscreen, Renderer, TileSet } from "./graphics";
 import { resources } from "./resources";
 
 let canvas: HTMLCanvasElement;
@@ -21,6 +21,8 @@ let uniforms: Record<string, WebGLUniformLocation> = {};
 let texWidth = 0;
 let texHeight = 0;
 let saves = 0;
+let drawsPerFrame = 0;
+let lastDrawsPerFrame = 0;
 
 const floatsPerImageRotation = 1;
 const shortsPerImagePosition = 2
@@ -43,6 +45,11 @@ let currentContextState: RenderState = {
 let renderStates: RenderState[] = [];
 
 let bitmaps: WebGLBitmap[] = [];
+
+interface WebGLOffscreen extends Offscreen {
+    texture: WebGLTexture | null;
+    fb: WebGLFramebuffer | null;
+}
 
 interface WebGLBitmap extends GameImage {
     texX: number;
@@ -157,10 +164,14 @@ export const webglRenderer: Renderer = {
         return tileset;
     },
 
-    drawTile(tiles: TileSet, x: number, y: number, tile: number): void {
+    drawTile(tiles: TileSet, x: number, y: number, tile: number,): void {
         const bitmap = tiles.image as WebGLBitmap;
 
-        const scanLine = Math.floor(bitmap.image!.width / tiles.tileWidth);
+        if (!bitmap.image) {
+            return;
+        }
+
+        const scanLine = Math.floor(bitmap.image.width / tiles.tileWidth);
         const tx = tile % scanLine;
         const ty = Math.floor(tile / scanLine);
         const texX = bitmap.texX + (tx * tiles.tileWidth);
@@ -172,6 +183,8 @@ export const webglRenderer: Renderer = {
     },
 
     preRender(): void {
+        drawsPerFrame = 0;
+
         currentContextState = {
             alpha: 255,
             scaleX: 1,
@@ -183,8 +196,15 @@ export const webglRenderer: Renderer = {
         renderStart();
     },
 
+    getDrawCount(): number {
+        return lastDrawsPerFrame;
+    },
+
     postRender(): void {
         renderEnd();
+        if (drawsPerFrame !== 0) {
+            lastDrawsPerFrame = drawsPerFrame;
+        }
     },
 
     drawRect(x: number, y: number, width: number, height: number, col: string): void {
@@ -238,7 +258,60 @@ export const webglRenderer: Renderer = {
     },
     initResourceOnLoaded: function (): void {
         _initResourceOnLoaded();
-    }
+    },
+
+    createOffscreen(width: number, height: number): Offscreen {
+        const offscreen: WebGLOffscreen = {
+            width,
+            height,
+            texture: null,
+            fb: null
+        };
+        createFrameBuffer(offscreen);
+
+        return offscreen;
+    },
+
+    drawOffscreen(o: Offscreen, x: number, y: number): void {
+        const offscreen: WebGLOffscreen = o as WebGLOffscreen;
+
+        glCommitContext();
+
+        glStartContext();
+        gl.uniform2f(getUniformLoc("uTexSize"), offscreen.width, offscreen.height);
+        gl.bindTexture(gl.TEXTURE_2D, offscreen.texture);
+        _drawImage(-100, 0, offscreen.height, offscreen.width, -offscreen.height, x, y, offscreen.width, offscreen.height, 0xFFFFFF00, currentContextState.alpha);
+        glCommitContext();
+
+        gl.uniform2f(getUniformLoc("uTexSize"), texWidth, texHeight);
+        gl.bindTexture(gl.TEXTURE_2D, currentTexture);
+        glStartContext();
+        
+    },
+
+    drawToOffscreen(offscreen: Offscreen): void {
+        useFrameBuffer(offscreen as WebGLOffscreen);
+    },
+
+    drawToMain(): void {
+        unuseFrameBuffer();
+    },
+
+    ready(): boolean {
+        return !!atlasTextures;
+    },
+
+    clearRect(x: number, y: number, width: number, height: number): void {
+        glCommitContext();
+
+        glStartContext();
+        gl.blendFunc(gl.ZERO, gl.ZERO);
+        webglRenderer.fillRect(x, y, width, height, "rgba(0,0,0,0)");
+        glCommitContext();
+        gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+
+        glStartContext();
+    },
 }
 
 function initGlResources(): void {
@@ -615,21 +688,21 @@ function _initResourceOnLoaded(): void {
 
     const placed: WebGLBitmap[] = [];
     placed.push({ id: "fake", texX: 0, texY: 0, width: 1, height: 1, texIndex: -1 })
-    let records = list.map(image => { return { image: image, w: image.width+2, h: image.height+2 } });
+    let records = list.map(image => { return { image: image, w: image.width + 2, h: image.height + 2 } });
     const tooBig = records.filter(r => r.w > textureSize || r.h > textureSize);
-    tooBig.forEach(r => console.log(r.image.id+" is too big for small textures: " + r.w + "x" + r.h));
+    tooBig.forEach(r => console.log(r.image.id + " is too big for small textures: " + r.w + "x" + r.h));
 
     records = records.filter(r => r.w <= textureSize && r.h <= textureSize);
-    
+
     let base = 0;
     let step = 1;
     let textureCount = 0;
     for (let i = 0; i < records.length; i += step) {
         let { w, h, fill } = potpack(records.slice(base, i));
         if (w > textureSize || h > textureSize) {
-            let { w, h, fill } = potpack(records.slice(base, i-1));
-            records.slice(base, i-1).forEach(record => record.image.texIndex = textureCount);
-            base = i-1;
+            let { w, h, fill } = potpack(records.slice(base, i - 1));
+            records.slice(base, i - 1).forEach(record => record.image.texIndex = textureCount);
+            base = i - 1;
             textureCount++;
         }
     }
@@ -752,13 +825,15 @@ function glStartContext(): void {
 
 function glCommitContext(): void {
     if (draws > 0 && rgbas && extension) {
+        drawsPerFrame += draws;
         gl.bufferSubData(gl.ARRAY_BUFFER, 0, rgbas.subarray(0, draws * 6));
         extension.drawElementsInstancedANGLE(gl.TRIANGLES, 6, gl.UNSIGNED_BYTE, 0, draws);
         draws = 0;
     }
 }
 
-function _drawImage(texIndex: number, texX: number, texY: number, texWidth: number, texHeight: number, drawX: number, drawY: number, width: number, height: number, rgba: number, alpha: number) {
+function _drawImage(texIndex: number, texX: number, texY: number, texWidth: number, texHeight: number, 
+                    drawX: number, drawY: number, width: number, height: number, rgba: number, alpha: number) {
     if (!atlasTextures) {
         return;
     }
@@ -795,6 +870,7 @@ function _drawImage(texIndex: number, texX: number, texY: number, texWidth: numb
     let drawY2 = drawY + height;
     const t1 = transformCtx.getTransform().transformPoint({ x: drawX, y: drawY });
     const t2 = transformCtx.getTransform().transformPoint({ x: drawX2, y: drawY2 });
+
     drawX = t1.x;
     drawY = t1.y;
     drawX2 = t2.x;
@@ -858,4 +934,64 @@ function recoverContext(): void {
     _initResourceOnLoaded();
     resize();
     console.log("RECREATE GL RESOURCES");
+}
+
+function createFrameBuffer(offscreen: WebGLOffscreen): void {
+    offscreen.texture = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, offscreen.texture);
+
+    const level = 0;
+    const internalFormat = gl.RGBA;
+    const border = 0;
+    const format = gl.RGBA;
+    const type = gl.UNSIGNED_BYTE;
+    const data = null;
+    gl.texImage2D(gl.TEXTURE_2D, level, internalFormat,
+        offscreen.width, offscreen.height, border,
+        format, type, data);
+
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+
+    offscreen.fb = gl.createFramebuffer();
+    gl.bindFramebuffer(gl.FRAMEBUFFER, offscreen.fb);
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, offscreen.texture, level);
+
+    gl.clearColor(0,0,0,1);
+    gl.clear(gl.COLOR_BUFFER_BIT);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    gl.bindTexture(gl.TEXTURE_2D, currentTexture);
+}
+
+function useFrameBuffer(offscreen: WebGLOffscreen): void {
+    glCommitContext();
+
+    gl.bindFramebuffer(gl.FRAMEBUFFER, offscreen.fb);
+    gl.uniform2f(getUniformLoc("uCanvasSize"), Math.floor(offscreen.width / 2), Math.floor(offscreen.height / 2));
+    gl.viewport(0, 0, offscreen.width, offscreen.height);
+    
+    webglRenderer.push();
+    currentContextState = {
+        alpha: 255,
+        scaleX: 1,
+        scaleY: 1,
+        rotation: 0
+    };
+    transformCtx.resetTransform();
+
+    glStartContext();
+}
+
+function unuseFrameBuffer(): void {
+    glCommitContext();
+    gl.flush();
+
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    gl.viewport(0, 0, canvas.width, canvas.height);
+    gl.uniform2f(getUniformLoc("uCanvasSize"), canvas.width / 2, canvas.height / 2);
+
+    webglRenderer.pop();
+    glStartContext();
 }

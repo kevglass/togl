@@ -14,6 +14,11 @@ let mouseDown = false;
 export type FontCharacterWidth = [number, string];
 export type FontCharacterWidths = FontCharacterWidth[];
 
+export interface Offscreen {
+    width: number;
+    height: number;
+}
+
 export interface GameFont {
     lineHeight: number;
     tiles: TileSet;
@@ -135,20 +140,22 @@ canvas.addEventListener("mouseup", (event) => {
 });
 
 function loop(game: Game): void {
-    // give the utility classes a chance to update based on 
-    // screen size etc
-    graphics.update();
-    currentRenderer.preRender();
+    if (currentRenderer.ready()) {
+        // give the utility classes a chance to update based on 
+        // screen size etc
+        graphics.update();
+        currentRenderer.preRender();
 
-    game.render();
+        game.render();
 
-    currentRenderer.postRender();
+        currentRenderer.postRender();
 
-    frameCount++;
-    if (Date.now() - lastFPS > 1000) {
-        fps = frameCount;
-        frameCount = 0;
-        lastFPS = Date.now();
+        frameCount++;
+        if (Date.now() - lastFPS > 1000) {
+            fps = frameCount;
+            frameCount = 0;
+            lastFPS = Date.now();
+        }
     }
     requestAnimationFrame(() => { loop(game) });
 }
@@ -195,6 +202,20 @@ export interface Renderer {
     preRender(): void;
 
     postRender(): void;
+
+    createOffscreen(width: number, height: number): Offscreen;
+
+    drawOffscreen(offscreen: Offscreen, x: number, y: number): void;
+
+    drawToOffscreen(offscreen: Offscreen): void;
+
+    drawToMain(): void;
+
+    ready(): boolean;
+
+    clearRect(x: number, y: number, width: number, height: number): void;
+
+    getDrawCount(): number;
 }
 
 let currentRenderer: Renderer;
@@ -204,8 +225,8 @@ let fps: number = 0;
 
 export const graphics = {
     init(rendererType: RendererType, pixelatedRenderingEnabled = false): void {
-        console.log("TOGL Renderer: " + rendererType + " (pixelated = "+pixelatedRenderingEnabled+")");
-        
+        console.log("TOGL Renderer: " + rendererType + " (pixelated = " + pixelatedRenderingEnabled + ")");
+
         if (rendererType === RendererType.CANVAS) {
             currentRenderer = canvasRenderer.init(canvas, pixelatedRenderingEnabled);
         }
@@ -226,7 +247,7 @@ export const graphics = {
     getFPS(): number {
         return fps;
     },
-    
+
     width(): number {
         return canvas.width;
     },
@@ -246,16 +267,16 @@ export const graphics = {
 
     generateFont(size: number, col: string, charset?: string): GameFont {
         const characterSet = charset ??
-        "ABCDEFGHIJKLMNOPQRSTUVWXYZ" +
-        "abcdefghijklmnopqrstuvwxyz" +
-        "0123456789.,;:?!\"'+-=*%_()" +
-        "[]{}~#&@©®™°^`|/\<>…€$£¢¿¡" +
-        "“”‘’«»‹›„‚·•ÀÁÂÄÃÅÆÇÐÈÉÊËÌ" +
-        "ÍÎÏÑÒÓÔÖÕØŒÙÚÛÜÝŸÞẞàáâäãåæ" +
-        "çðèéêëìíîïñòóôöõøœùúûüýÿþß" +
-        "АБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШ" +
-        "ЩЪЫЬЭЮЯабвгдеёжзийклмнопрс" +
-        "туфхцчшщъыьэюя";
+            "ABCDEFGHIJKLMNOPQRSTUVWXYZ" +
+            "abcdefghijklmnopqrstuvwxyz" +
+            "0123456789.,;:?!\"'+-=*%_()" +
+            "[]{}~#&@©®™°^`|/\<>…€$£¢¿¡" +
+            "“”‘’«»‹›„‚·•ÀÁÂÄÃÅÆÇÐÈÉÊËÌ" +
+            "ÍÎÏÑÒÓÔÖÕØŒÙÚÛÜÝŸÞẞàáâäãåæ" +
+            "çðèéêëìíîïñòóôöõøœùúûüýÿþß" +
+            "АБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШ" +
+            "ЩЪЫЬЭЮЯабвгдеёжзийклмнопрс" +
+            "туфхцчшщъыьэюя";
 
         const canvas = document.createElement("canvas");
         const ctx = canvas.getContext("2d")!;
@@ -268,7 +289,7 @@ export const graphics = {
         let th = 0;
         let baseline = 0;
 
-        for (let i=0;i<characterSet.length;i++) {
+        for (let i = 0; i < characterSet.length; i++) {
             const metrics = ctx.measureText(characterSet[i]);
             const width = Math.ceil(metrics.width);
             const height = Math.ceil(metrics.fontBoundingBoxAscent + metrics.fontBoundingBoxDescent);
@@ -291,14 +312,14 @@ export const graphics = {
         ctx.fillStyle = col;
         ctx.font = "bold " + size + "px \"Fira Sans\", sans-serif";
 
-        for (let i=0;i<characterSet.length;i++) {
+        for (let i = 0; i < characterSet.length; i++) {
             const xp = (i % 26) * tw;
             const yp = (Math.floor(i / 26) * th) + baseline - 1;
             ctx.fillText(characterSet[i], xp, yp);
         }
 
         return {
-            tiles: graphics.loadTileSet(canvas.toDataURL(), tw, th, size+"-"+col),
+            tiles: graphics.loadTileSet(canvas.toDataURL(), tw, th, size + "-" + col),
             baseline,
             chars: characterSet,
             widths,
@@ -362,6 +383,10 @@ export const graphics = {
         let x = 0;
         for (let i = 0; i < text.length; i++) {
             const c = text.charAt(i);
+            if (c === ' ') {
+                x += Math.floor(font.tiles.tileWidth / 2.5);
+                continue;
+            }
             const kern = font.widths.find(a => (a[1] as string).includes(c));
             if (kern) {
                 x += (kern[0] as number);
@@ -429,4 +454,28 @@ export const graphics = {
     initResourceOnLoaded(): void {
         currentRenderer.initResourceOnLoaded();
     },
+
+    createOffscreen(width: number, height: number): Offscreen {
+        return currentRenderer.createOffscreen(width, height);
+    },
+
+    drawOffscreen(offscreen: Offscreen, x: number, y: number): void {
+        currentRenderer.drawOffscreen(offscreen, x, y);
+    },
+
+    drawToOffscreen(offscreen: Offscreen): void {
+        currentRenderer.drawToOffscreen(offscreen);
+    },
+
+    drawToMain(): void {
+        currentRenderer.drawToMain();
+    },
+
+    clearRect(x: number, y: number, width: number, height: number): void {
+        currentRenderer.clearRect(x,y,width,height);
+    },
+
+    getDrawCount(): number {
+        return currentRenderer.getDrawCount();
+    }
 }

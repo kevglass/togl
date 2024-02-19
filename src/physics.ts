@@ -158,11 +158,16 @@ export const physics = {
             physics.rotateShape(objects[i], objects[i].angularVelocity * 1 / fps);
         }
 
-        // Compute collisions
+        // Compute collisions and iterate to resolve
         for (let k = 9; k--;) {
+            let collision = false;
+
             for (let i = objects.length; i--;) {
                 for (let j = objects.length; j-- > i;) {
-
+                    // don't collide two static objects
+                    if ((objects[i].mass === 0) && (objects[j].mass === 0)) {
+                        continue;
+                    }
                     // Test bounds
                     if (boundTest(objects[i], objects[j])) {
 
@@ -180,10 +185,17 @@ export const physics = {
                             }
 
                             // Resolve collision
-                            resolveCollision(objects[i], objects[j], world.collisionInfo);
+                            if (resolveCollision(objects[i], objects[j], world.collisionInfo)) {
+                                collision = true;
+                            }
                         }
                     }
                 }
+            }
+
+            // no more collisions occurred, break out
+            if (!collision) {
+                break;
             }
         }
     },
@@ -494,9 +506,9 @@ function testCollision(world: PhysicsWorld, c1: Shape, c2: Shape, collisionInfo:
     }
 }
 
-function resolveCollision(s1: Shape, s2: Shape, collisionInfo: Collision) {
+function resolveCollision(s1: Shape, s2: Shape, collisionInfo: Collision): boolean {
     if (!s1.mass && !s2.mass) {
-        return;
+        return false;
     }
 
     // correct positions
@@ -506,7 +518,7 @@ function resolveCollision(s1: Shape, s2: Shape, collisionInfo: Collision) {
         n = collisionInfo.normal;
     
     if (physics.lengthVec2(correctionAmount) === 0) {
-        return;
+        return false;
     }
     physics.moveShape(s1, physics.scale(correctionAmount, -s1.mass));
     physics.moveShape(s2, physics.scale(correctionAmount, s2.mass));
@@ -532,7 +544,7 @@ function resolveCollision(s1: Shape, s2: Shape, collisionInfo: Collision) {
 
     // if objects moving apart ignore
     if (rVelocityInNormal > 0) {
-        return;
+        return false;
     }
 
     // compute and apply response impulses for each object  
@@ -590,6 +602,8 @@ function resolveCollision(s1: Shape, s2: Shape, collisionInfo: Collision) {
         s2.velocity.x = 0;
         s2.velocity.y = 0;
     }
+
+    return true;
 }
 
 function createDemoScene(): PhysicsWorld {

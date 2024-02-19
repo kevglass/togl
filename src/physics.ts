@@ -35,13 +35,8 @@ export interface Shape {
     height: number,
     inertia: number,
     faceNormals: Vector2[]
-    vertices: Vector2[],
-    angularDamp: number,
-    damp: number;
+    vertices: Vector2[]
 }
-
-const defaultAngularDamp = 1;
-const defaultDamp = 7;
 
 export interface PhysicsWorld {
     objects: Shape[];
@@ -49,6 +44,8 @@ export interface PhysicsWorld {
     collisionInfo: Collision;
     collisionInfoR1: Collision;
     collisionInfoR2: Collision;
+    angularDamp: number;
+    damp: number;
 }
 
 export const physics = {
@@ -59,6 +56,8 @@ export const physics = {
             collisionInfo: EmptyCollision(),
             collisionInfoR1: EmptyCollision(),
             collisionInfoR2: EmptyCollision(),
+            angularDamp: 0.98,
+            damp: 0.98
         }
     },
 
@@ -196,7 +195,7 @@ export const physics = {
                             }
 
                             // Resolve collision
-                            if (resolveCollision(objects[i], objects[j], world.collisionInfo)) {
+                            if (resolveCollision(world, objects[i], objects[j], world.collisionInfo)) {
                                 collision = true;
                             }
                         }
@@ -292,9 +291,7 @@ function createRigidShape(world: PhysicsWorld, center: Vector2, mass: number, fr
             physics.Vec2(center.x + width / 2, center.y - height / 2),
             physics.Vec2(center.x + width / 2, center.y + height / 2),
             physics.Vec2(center.x - width / 2, center.y + height / 2)
-        ],
-        angularDamp: defaultAngularDamp,
-        damp: defaultDamp
+        ]
     };
 
     // Prepare rectangle
@@ -522,7 +519,7 @@ function testCollision(world: PhysicsWorld, c1: Shape, c2: Shape, collisionInfo:
     return false;
 }
 
-function resolveCollision(s1: Shape, s2: Shape, collisionInfo: Collision): boolean {
+function resolveCollision(world: PhysicsWorld, s1: Shape, s2: Shape, collisionInfo: Collision): boolean {
     if (!s1.mass && !s2.mass) {
         return false;
     }
@@ -604,20 +601,12 @@ function resolveCollision(s1: Shape, s2: Shape, collisionInfo: Collision): boole
     s1.angularVelocity -= R1crossT * jT * s1.inertia;
     s2.angularVelocity += R2crossT * jT * s2.inertia;
 
-    if (Math.abs(s1.angularVelocity) < s1.angularDamp) {
-        s1.angularVelocity = 0;
-    }
-    if (Math.abs(s2.angularVelocity) < s2.angularDamp) {
-        s2.angularVelocity = 0;
-    }
-    if (physics.lengthVec2(s1.velocity) < s1.damp) {
-        s1.velocity.x = 0;
-        s1.velocity.y = 0;
-    }
-    if (physics.lengthVec2(s2.velocity) < s1.damp) {
-        s2.velocity.x = 0;
-        s2.velocity.y = 0;
-    }
+    s1.velocity.x *= world.damp;
+    s1.velocity.y *= world.damp;
+    s2.velocity.x *= world.damp;
+    s2.velocity.y *= world.damp;
+    s1.angularVelocity *= world.angularDamp;
+    s2.angularVelocity *= world.angularDamp;
 
     return true;
 }

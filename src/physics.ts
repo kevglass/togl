@@ -19,7 +19,7 @@ export interface Collision {
     end: Vector2;
 }
 
-export interface Shape {
+export interface Body {
     id: number;
     type: number,
     center: Vector2,
@@ -40,7 +40,7 @@ export interface Shape {
 }
 
 export interface PhysicsWorld {
-    objects: Shape[];
+    bodies: Body[];
     gravity: Vector2;
     collisionInfo: Collision;
     collisionInfoR1: Collision;
@@ -53,7 +53,7 @@ export interface PhysicsWorld {
 export const physics = {
     createWorld(): PhysicsWorld {
         return {
-            objects: [],
+            bodies: [],
             gravity: physics.Vec2(0, 100),
             collisionInfo: EmptyCollision(),
             collisionInfoR1: EmptyCollision(),
@@ -76,7 +76,7 @@ export const physics = {
 
         c.strokeStyle = "white";
 
-        const objects = world.objects;
+        const objects = world.bodies;
 
         for (let i = objects.length; i--;) {
             // Draw
@@ -113,7 +113,7 @@ export const physics = {
     },
 
     // New circle
-    createCircle(world: PhysicsWorld, center: Vector2, radius: number, mass: number, friction: number, restitution: number): Shape {
+    createCircle(world: PhysicsWorld, center: Vector2, radius: number, mass: number, friction: number, restitution: number): Body {
         // the original code only works well with whole number static objects
         center.x = Math.floor(center.x);
         center.y = Math.floor(center.y);
@@ -123,7 +123,7 @@ export const physics = {
     },
 
     // New rectangle
-    createRectangle(world: PhysicsWorld, center: Vector2, width: number, height: number, mass: number, friction: number, restitution: number, rotate: boolean = false): Shape {
+    createRectangle(world: PhysicsWorld, center: Vector2, width: number, height: number, mass: number, friction: number, restitution: number, rotate: boolean = false): Body {
         // the original code only works well with whole number static objects
         center.x = Math.floor(center.x);
         center.y = Math.floor(center.y);
@@ -134,7 +134,7 @@ export const physics = {
     },
 
     // Move a shape along a vector
-    moveShape(shape: Shape, v: Vector2) {
+    moveShape(shape: Body, v: Vector2) {
         // Center
         shape.center = physics.addVec2(shape.center, v);
 
@@ -147,7 +147,7 @@ export const physics = {
     },
 
     // Rotate a shape around its center
-    rotateShape(shape: Shape, angle: number) {
+    rotateShape(shape: Body, angle: number) {
         // Update angle
         shape.angle += angle;
 
@@ -161,7 +161,7 @@ export const physics = {
     },
 
     worldStep(fps: number, world: PhysicsWorld) {
-        const objects = world.objects;
+        const objects = world.bodies;
 
         for (let i = objects.length; i--;) {
             // Update position/rotation
@@ -270,8 +270,8 @@ function setCollisionInfo(collision: Collision, D: number, N: Vector2, S: Vector
 }
 
 // New shape
-function createRigidShape(world: PhysicsWorld, center: Vector2, mass: number, friction: number, restitution: number, type: number, bounds: number, width = 0, height = 0, rotate: boolean = false): Shape {
-    const shape: Shape = {
+function createRigidShape(world: PhysicsWorld, center: Vector2, mass: number, friction: number, restitution: number, type: number, bounds: number, width = 0, height = 0, rotate: boolean = false): Body {
+    const shape: Body = {
         id: world.nextId++,
         type: type, // 0 circle / 1 rectangle
         center: center, // center
@@ -302,17 +302,17 @@ function createRigidShape(world: PhysicsWorld, center: Vector2, mass: number, fr
     if (type /* == 1 */) {
         computeRectNormals(shape);
     }
-    world.objects.push(shape);
+    world.bodies.push(shape);
     return shape;
 }
 
 // Test if two shapes have intersecting bounding circles
-function boundTest(s1: Shape, s2: Shape) {
+function boundTest(s1: Body, s2: Body) {
     return physics.lengthVec2(physics.subtractVec2(s2.center, s1.center)) <= s1.bounds + s2.bounds;
 }
 
 // Compute face normals (for rectangles)
-function computeRectNormals(shape: Shape): void {
+function computeRectNormals(shape: Body): void {
 
     // N: normal of each face toward outside of rectangle
     // 0: Top, 1: Right, 2: Bottom, 3: Left
@@ -322,7 +322,7 @@ function computeRectNormals(shape: Shape): void {
 }
 
 // Find the axis of least penetration between two rects
-function findAxisLeastPenetration(rect: Shape, otherRect: Shape, collisionInfo: Collision) {
+function findAxisLeastPenetration(rect: Body, otherRect: Body, collisionInfo: Collision) {
     let n,
         i,
         j,
@@ -380,7 +380,7 @@ function findAxisLeastPenetration(rect: Shape, otherRect: Shape, collisionInfo: 
 }
 
 // Test collision between two shapes
-function testCollision(world: PhysicsWorld, c1: Shape, c2: Shape, collisionInfo: Collision): boolean {
+function testCollision(world: PhysicsWorld, c1: Body, c2: Body, collisionInfo: Collision): boolean {
     // Circle vs circle
     if (!c1.type && !c2.type) {
         const
@@ -523,7 +523,7 @@ function testCollision(world: PhysicsWorld, c1: Shape, c2: Shape, collisionInfo:
     return false;
 }
 
-function resolveCollision(world: PhysicsWorld, s1: Shape, s2: Shape, collisionInfo: Collision): boolean {
+function resolveCollision(world: PhysicsWorld, s1: Body, s2: Body, collisionInfo: Collision): boolean {
     if (!s1.mass && !s2.mass) {
         return false;
     }

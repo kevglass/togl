@@ -33,6 +33,17 @@ export const resources = {
         }
     },
 
+    loadTextSync(url: string): string {
+        const request = new XMLHttpRequest();
+        request.open("GET", url, false);
+        request.send();
+        if (request.status === 200) {
+          return request.responseText;
+        }
+
+        throw "Error reading: " + url + " " + request.status;
+    }, 
+
     loadText(url: string): Promise<string> {
         return new Promise<string>((resolve, reject) => {
             const request = new XMLHttpRequest();

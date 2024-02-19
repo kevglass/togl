@@ -35,8 +35,13 @@ export interface Shape {
     height: number,
     inertia: number,
     faceNormals: Vector2[]
-    vertices: Vector2[]
+    vertices: Vector2[],
+    angularDamp: number,
+    damp: number;
 }
+
+const defaultAngularDamp = 1;
+const defaultDamp = 5;
 
 export interface PhysicsWorld {
     objects: Shape[];
@@ -264,7 +269,9 @@ function createRigidShape(world: PhysicsWorld, center: Vector2, mass: number, fr
             physics.Vec2(center.x + width / 2, center.y - height / 2),
             physics.Vec2(center.x + width / 2, center.y + height / 2),
             physics.Vec2(center.x - width / 2, center.y + height / 2)
-        ]
+        ],
+        angularDamp: defaultAngularDamp,
+        damp: defaultDamp
     };
 
     // Prepare rectangle
@@ -497,8 +504,13 @@ function resolveCollision(s1: Shape, s2: Shape, collisionInfo: Collision) {
         num = collisionInfo.depth / (s1.mass + s2.mass) * .8, // .8 = poscorrectionrate = percentage of separation to project objects
         correctionAmount = physics.scale(collisionInfo.normal, num),
         n = collisionInfo.normal;
+    
+    if (physics.lengthVec2(correctionAmount) === 0) {
+        return;
+    }
     physics.moveShape(s1, physics.scale(correctionAmount, -s1.mass));
     physics.moveShape(s2, physics.scale(correctionAmount, s2.mass));
+
 
     // the direction of collisionInfo is always from s1 to s2
     // but the Mass is inversed, so start scale with s2 and end scale with s1
@@ -563,6 +575,21 @@ function resolveCollision(s1: Shape, s2: Shape, collisionInfo: Collision) {
     s2.velocity = physics.addVec2(s2.velocity, physics.scale(impulse, s2.mass));
     s1.angularVelocity -= R1crossT * jT * s1.inertia;
     s2.angularVelocity += R2crossT * jT * s2.inertia;
+
+    if (Math.abs(s1.angularVelocity) < s1.angularDamp) {
+        s1.angularVelocity = 0;
+    }
+    if (Math.abs(s2.angularVelocity) < s2.angularDamp) {
+        s2.angularVelocity = 0;
+    }
+    if (physics.lengthVec2(s1.velocity) < s1.damp) {
+        s1.velocity.x = 0;
+        s1.velocity.y = 0;
+    }
+    if (physics.lengthVec2(s2.velocity) < s1.damp) {
+        s2.velocity.x = 0;
+        s2.velocity.y = 0;
+    }
 }
 
 function createDemoScene(): PhysicsWorld {

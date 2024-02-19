@@ -41,7 +41,7 @@ export interface Shape {
 }
 
 const defaultAngularDamp = 1;
-const defaultDamp = 5;
+const defaultDamp = 7;
 
 export interface PhysicsWorld {
     objects: Shape[];
@@ -55,7 +55,7 @@ export const physics = {
     createWorld(): PhysicsWorld {
         return {
             objects: [],
-            gravity: physics.Vec2(0,100),
+            gravity: physics.Vec2(0, 100),
             collisionInfo: EmptyCollision(),
             collisionInfoR1: EmptyCollision(),
             collisionInfoR2: EmptyCollision(),
@@ -215,35 +215,35 @@ export const physics = {
     Vec2(x: number, y: number): Vector2 {
         return ({ x, y });
     },
-    
+
     lengthVec2(v: Vector2): number {
         return physics.dotProduct(v, v) ** .5;
     },
-    
+
     addVec2(v: Vector2, w: Vector2): Vector2 {
         return physics.Vec2(v.x + w.x, v.y + w.y);
     },
-    
+
     subtractVec2(v: Vector2, w: Vector2): Vector2 {
         return physics.addVec2(v, physics.scale(w, -1));
     },
-    
+
     scale(v: Vector2, n: number): Vector2 {
         return physics.Vec2(v.x * n, v.y * n);
     },
-    
+
     dotProduct(v: Vector2, w: Vector2): number {
         return v.x * w.x + v.y * w.y;
     },
-    
+
     crossProduct(v: Vector2, w: Vector2): number {
         return v.x * w.y - v.y * w.x;
     },
-    
+
     rotateVec2(v: Vector2, center: Vector2, angle: number, x = v.x - center.x, y = v.y - center.y): Vector2 {
         return physics.Vec2(x * Math.cos(angle) - y * Math.sin(angle) + center.x, x * Math.sin(angle) + y * Math.cos(angle) + center.y);
     },
-    
+
     normalize(v: Vector2): Vector2 {
         return physics.scale(v, 1 / (physics.lengthVec2(v) || 1));
     },
@@ -379,7 +379,7 @@ function findAxisLeastPenetration(rect: Shape, otherRect: Shape, collisionInfo: 
 }
 
 // Test collision between two shapes
-function testCollision(world: PhysicsWorld, c1: Shape, c2: Shape, collisionInfo: Collision) {
+function testCollision(world: PhysicsWorld, c1: Shape, c2: Shape, collisionInfo: Collision): boolean {
     // Circle vs circle
     if (!c1.type && !c2.type) {
         const
@@ -391,9 +391,11 @@ function testCollision(world: PhysicsWorld, c1: Shape, c2: Shape, collisionInfo:
             const normalFrom2to1 = physics.normalize(physics.scale(vFrom1to2, -1)),
                 radiusC2 = physics.scale(normalFrom2to1, c2.bounds);
             setCollisionInfo(collisionInfo, rSum - dist, physics.normalize(vFrom1to2), physics.addVec2(c2.center, radiusC2));
+
+            return true;
         }
 
-        return 1;
+        return false;
     }
 
     // Rect vs Rect
@@ -409,16 +411,18 @@ function testCollision(world: PhysicsWorld, c1: Shape, c2: Shape, collisionInfo:
 
                 // if both of rectangles are overlapping, choose the shorter normal as the normal     
                 if (world.collisionInfoR1.depth < world.collisionInfoR2.depth) {
-                    setCollisionInfo(collisionInfo, world.collisionInfoR1.depth, world.collisionInfoR1.normal, 
+                    setCollisionInfo(collisionInfo, world.collisionInfoR1.depth, world.collisionInfoR1.normal,
                         physics.subtractVec2(world.collisionInfoR1.start, physics.scale(world.collisionInfoR1.normal, world.collisionInfoR1.depth)));
+                    return true;
                 }
-
                 else {
                     setCollisionInfo(collisionInfo, world.collisionInfoR2.depth, physics.scale(world.collisionInfoR2.normal, -1), world.collisionInfoR2.start);
+                    return true;
                 }
             }
         }
-        return status1 && status2;
+
+        return false;
     }
 
     // Rectangle vs Circle
@@ -456,9 +460,9 @@ function testCollision(world: PhysicsWorld, c1: Shape, c2: Shape, collisionInfo:
         let dis, normal;
 
         if (inside && circ2Pos) {
-
             // the center of circle is inside of c1angle
             setCollisionInfo(collisionInfo, c2.bounds - bestDistance, c1.faceNormals[nearestEdge], physics.subtractVec2(circ2Pos, physics.scale(c1.faceNormals[nearestEdge], c2.bounds)));
+            return true;
         }
         else if (circ2Pos) {
 
@@ -476,10 +480,11 @@ function testCollision(world: PhysicsWorld, c1: Shape, c2: Shape, collisionInfo:
 
                 // compare the distance with radium to decide collision
                 if (dis > c2.bounds) {
-                    return;
+                    return false;
                 }
                 normal = physics.normalize(v1);
                 setCollisionInfo(collisionInfo, c2.bounds - dis, normal, physics.addVec2(circ2Pos, physics.scale(normal, -c2.bounds)));
+                return true;
             }
             else {
 
@@ -494,27 +499,27 @@ function testCollision(world: PhysicsWorld, c1: Shape, c2: Shape, collisionInfo:
 
                     // compare the distance with radium to decide collision
                     if (dis > c2.bounds) {
-                        return;
+                        return false;
                     }
                     normal = physics.normalize(v1);
                     setCollisionInfo(collisionInfo, c2.bounds - dis, normal, physics.addVec2(circ2Pos, physics.scale(normal, -c2.bounds)));
-                }
-
-                else {
+                    return true;
+                } else {
 
                     // the center of circle is in face region of face[nearestEdge]
                     if (bestDistance < c2.bounds) {
                         setCollisionInfo(collisionInfo, c2.bounds - bestDistance, c1.faceNormals[nearestEdge], physics.subtractVec2(circ2Pos, physics.scale(c1.faceNormals[nearestEdge], c2.bounds)));
-                    }
-
-                    else {
-                        return;
+                        return true;
+                    } else {
+                        return false;
                     }
                 }
             }
         }
-        return 1;
+        return false;
     }
+
+    return false;
 }
 
 function resolveCollision(s1: Shape, s2: Shape, collisionInfo: Collision): boolean {
@@ -527,7 +532,7 @@ function resolveCollision(s1: Shape, s2: Shape, collisionInfo: Collision): boole
         num = collisionInfo.depth / (s1.mass + s2.mass) * .8, // .8 = poscorrectionrate = percentage of separation to project objects
         correctionAmount = physics.scale(collisionInfo.normal, num),
         n = collisionInfo.normal;
-    
+
     if (physics.lengthVec2(correctionAmount) === 0) {
         return false;
     }
@@ -581,7 +586,7 @@ function resolveCollision(s1: Shape, s2: Shape, collisionInfo: Collision): boole
     s1.angularVelocity -= R1crossN * jN * s1.inertia;
     s2.angularVelocity += R2crossN * jN * s2.inertia;
     const
-        tangent = physics.scale(physics.normalize(physics.subtractVec2(relativeVelocity, physics.scale(n,physics. dotProduct(relativeVelocity, n)))), -1),
+        tangent = physics.scale(physics.normalize(physics.subtractVec2(relativeVelocity, physics.scale(n, physics.dotProduct(relativeVelocity, n)))), -1),
         R1crossT = physics.crossProduct(r1, tangent),
         R2crossT = physics.crossProduct(r2, tangent);
     let

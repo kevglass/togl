@@ -20,6 +20,7 @@ export interface Collision {
 }
 
 export interface Shape {
+    id: number;
     type: number,
     center: Vector2,
     friction: number,
@@ -46,6 +47,7 @@ export interface PhysicsWorld {
     collisionInfoR2: Collision;
     angularDamp: number;
     damp: number;
+    nextId: number;
 }
 
 export const physics = {
@@ -57,7 +59,8 @@ export const physics = {
             collisionInfoR1: EmptyCollision(),
             collisionInfoR2: EmptyCollision(),
             angularDamp: 0.98,
-            damp: 0.98
+            damp: 0.98,
+            nextId: 1
         }
     },
 
@@ -269,6 +272,7 @@ function setCollisionInfo(collision: Collision, D: number, N: Vector2, S: Vector
 // New shape
 function createRigidShape(world: PhysicsWorld, center: Vector2, mass: number, friction: number, restitution: number, type: number, bounds: number, width = 0, height = 0, rotate: boolean = false): Shape {
     const shape: Shape = {
+        id: world.nextId++,
         type: type, // 0 circle / 1 rectangle
         center: center, // center
         friction: friction, // friction

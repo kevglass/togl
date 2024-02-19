@@ -111,8 +111,8 @@ export const physics = {
     },
 
     // New rectangle
-    createRectangle(world: PhysicsWorld, center: Vector2, width: number, height: number, mass: number, friction: number, restitution: number): Shape {
-        return createRigidShape(world, center, mass, friction, restitution, 1, Math.hypot(width, height) / 2, width, height);
+    createRectangle(world: PhysicsWorld, center: Vector2, width: number, height: number, mass: number, friction: number, restitution: number, rotate: boolean = false): Shape {
+        return createRigidShape(world, center, mass, friction, restitution, 1, Math.hypot(width, height) / 2, width, height, rotate);
     },
 
     // Move a shape along a vector
@@ -240,7 +240,7 @@ function setCollisionInfo(collision: Collision, D: number, N: Vector2, S: Vector
 }
 
 // New shape
-function createRigidShape(world: PhysicsWorld, center: Vector2, mass: number, friction: number, restitution: number, type: number, bounds: number, width = 0, height = 0): Shape {
+function createRigidShape(world: PhysicsWorld, center: Vector2, mass: number, friction: number, restitution: number, type: number, bounds: number, width = 0, height = 0, rotate: boolean = false): Shape {
     const shape: Shape = {
         type: type, // 0 circle / 1 rectangle
         center: center, // center
@@ -256,7 +256,7 @@ function createRigidShape(world: PhysicsWorld, center: Vector2, mass: number, fr
         width: width, // width
         height: height, // height
         inertia: type // inertia
-            ? (Math.hypot(width, height) / 2, mass > 0 ? 1 / (mass * (width ** 2 + height ** 2) / 12) : 0) // rectangle
+            ? (Math.hypot(width, height) / 2, mass > 0 ? 1 / (mass * (width ** 2 + height ** 2) / 12) : (rotate ? 0.01 : 0)) // rectangle
             : (mass > 0 ? (mass * bounds ** 2) / 12 : 0), // circle
         faceNormals: [], // face normals array (rectangles)
         vertices: [ // Vertex: 0: TopLeft, 1: TopRight, 2: BottomRight, 3: BottomLeft (rectangles)

@@ -112,11 +112,22 @@ export const physics = {
 
     // New circle
     createCircle(world: PhysicsWorld, center: Vector2, radius: number, mass: number, friction: number, restitution: number): Shape {
+        // the original code only works well with whole number static objects
+        center.x = Math.floor(center.x);
+        center.y = Math.floor(center.y);
+        radius = Math.floor(radius);
+
         return createRigidShape(world, center, mass, friction, restitution, 0, radius);
     },
 
     // New rectangle
     createRectangle(world: PhysicsWorld, center: Vector2, width: number, height: number, mass: number, friction: number, restitution: number, rotate: boolean = false): Shape {
+        // the original code only works well with whole number static objects
+        center.x = Math.floor(center.x);
+        center.y = Math.floor(center.y);
+        width = Math.floor(width);
+        height = Math.floor(height);
+
         return createRigidShape(world, center, mass, friction, restitution, 1, Math.hypot(width, height) / 2, width, height, rotate);
     },
 

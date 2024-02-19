@@ -32,4 +32,20 @@ export const resources = {
             resourceListener?.resourcesLoaded();
         }
     },
+
+    loadText(url: string): Promise<string> {
+        return new Promise<string>((resolve, reject) => {
+            const request = new XMLHttpRequest();
+            request.open("GET", url);
+            request.onreadystatechange = () => {
+                if (request.readyState == 4 && request.status == 200) {
+                    resolve(request.responseText);
+                }
+            };
+            request.onerror = () => {
+                reject();
+            };
+            request.send();
+        });
+    }
 }

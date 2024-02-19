@@ -34,7 +34,7 @@ export const canvasRenderer: Renderer = {
     resize(): void {
 
     },
-    
+
     preRender(): void {
 
     },
@@ -86,7 +86,7 @@ export const canvasRenderer: Renderer = {
     },
 
     // Draw a single tile from a tile set by default at its natural size
-    drawTile(tiles: TileSet, x: number, y: number, tile: number): void {
+    drawTile(tiles: TileSet, x: number, y: number, tile: number, width?: number, height?: number): void {
         x = Math.floor(x);
         y = Math.floor(y);
 
@@ -97,8 +97,8 @@ export const canvasRenderer: Renderer = {
         let tileImage = tiles.tiles[tile];
         if (!tileImage) {
             tileImage = tiles.tiles[tile] = document.createElement("canvas");
-            tileImage.width = tiles.tileWidth;
-            tileImage.height = tiles.tileHeight;
+            tileImage.width = width ?? tiles.tileWidth;
+            tileImage.height = height ?? tiles.tileHeight;
             (tileImage as HTMLCanvasElement).getContext("2d")?.drawImage(tiles.image as CanvasImageSource, tx, ty, tiles.tileWidth, tiles.tileHeight, 0, 0, tiles.tileWidth, tiles.tileHeight);
         }
         ctx.drawImage(tileImage as CanvasImageSource, x, y);

@@ -169,7 +169,7 @@ export interface Renderer {
     loadTileSet(url: string, tw: number, th: number, id?: string): TileSet;
 
     // Draw a single tile from a tile set by default at its natural size
-    drawTile(tiles: TileSet, x: number, y: number, tile: number): void;
+    drawTile(tiles: TileSet, x: number, y: number, tile: number, width: number, height: number): void;
 
     // draw a rectangle outlined to the canvas
     drawRect(x: number, y: number, width: number, height: number, col: string): void;
@@ -342,8 +342,8 @@ export const graphics = {
     },
 
     // Draw a single tile from a tile set by default at its natural size
-    drawTile(tiles: TileSet, x: number, y: number, tile: number): void {
-        currentRenderer.drawTile(tiles, x, y, tile);
+    drawTile(tiles: TileSet, x: number, y: number, tile: number, width: number = tiles.tileWidth, height: number = tiles.tileHeight): void {
+        currentRenderer.drawTile(tiles, x, y, tile, width, height);
     },
 
     outlineText(x: number, y: number, str: string, font: GameFont, outlineWidth: number, outlineFont: GameFont): void {

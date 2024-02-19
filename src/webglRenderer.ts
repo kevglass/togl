@@ -329,6 +329,10 @@ export const webglRenderer: Renderer = {
 
         glStartContext();
     },
+    
+    resize(): void {
+        resize();
+    },
 }
 
 function initGlResources(): void {

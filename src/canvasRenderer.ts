@@ -31,6 +31,10 @@ export const canvasRenderer: Renderer = {
         return canvasRenderer;
     },
 
+    resize(): void {
+
+    },
+    
     preRender(): void {
 
     },

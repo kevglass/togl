@@ -218,6 +218,8 @@ export interface Renderer {
     clearRect(x: number, y: number, width: number, height: number): void;
 
     getDrawCount(): number;
+
+    resize(): void;
 }
 
 let currentRenderer: Renderer;
@@ -411,6 +413,7 @@ export const graphics = {
         if (canvas.width !== screenWidth || canvas.height !== screenHeight) {
             canvas.width = screenWidth;
             canvas.height = screenHeight;
+            currentRenderer.resize();
         }
     },
 

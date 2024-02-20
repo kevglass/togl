@@ -720,8 +720,8 @@ function createDemoScene(count: number, withBoxes: boolean): PhysicsWorld {
     physics.createRectangle(world, physics.Vec2(10, 360), 20, 100, 0, 1, .5);
 
     for (let i = 0; i < count; i++) {
-        // r = physics.createCircle(world, physics.Vec2(Math.random() * 800, Math.random() * 450 / 2), Math.random() * 20 + 10, Math.random() * 30, Math.random() / 2, Math.random() / 2);
-        // physics.rotateShape(r, Math.random() * 7);
+        r = physics.createCircle(world, physics.Vec2(Math.random() * 800, Math.random() * 450 / 2), Math.random() * 20 + 10, Math.random() * 30, Math.random() / 2, Math.random() / 2);
+        physics.rotateShape(r, Math.random() * 7);
         if (withBoxes) {
             r = physics.createRectangle(world, physics.Vec2(Math.random() * 800, Math.random() * 450 / 2), Math.random() * 20 + 10, Math.random() * 20 + 10, Math.random() * 30, Math.random() / 2, Math.random() / 2);
             physics.rotateShape(r, Math.random() * 7);

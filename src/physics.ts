@@ -215,7 +215,7 @@ export const physics = {
                     let vec = physics.subtractVec2(other.center, body.center)
                     const distance = physics.lengthVec2(vec);
                     const diff = distance - joint.distance;
-                    if (Math.abs(diff) > 1) {
+                    if (Math.abs(diff) > 0) {
                         vec = physics.scale(vec, (1/distance) * diff * joint.tightness * (other.mass === 0 ? 1 : 0.5));
                         physics.moveShape(body, vec);
                         body.velocity = physics.addVec2(body.velocity, physics.scale(vec, fps));

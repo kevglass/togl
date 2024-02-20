@@ -30,12 +30,14 @@ export interface Body {
     id: number;
     type: number,
     center: Vector2,
+    averageCenter: Vector2;
     friction: number,
     restitution: number,
     mass: number,
     velocity: Vector2,
     acceleration: Vector2,
     angle: number,
+    averageAngle: number;
     angularVelocity: number,
     angularAcceleration: number,
     bounds: number,
@@ -58,8 +60,6 @@ export interface PhysicsWorld {
     nextId: number;
     joints: Joint[];
 }
-
-let firstLog = true;
 
 export const physics = {
     createWorld(): PhysicsWorld {
@@ -130,13 +130,17 @@ export const physics = {
         }
     },
 
-    startDemoScene(canvas: HTMLCanvasElement): void {
-        const world = createDemoScene();
+    startDemoScene(canvas: HTMLCanvasElement, count: number, withBoxes: boolean): void {
+        const world = createDemoScene(count, withBoxes);
 
         setInterval(() => {
             physics.worldStep(60, world);
             physics.renderDemoScene(canvas, world);
         }, 16);
+    },
+
+    createDemoScene(count: number, withBoxes: boolean): PhysicsWorld {
+        return createDemoScene(count, withBoxes);
     },
 
     // New circle
@@ -267,6 +271,18 @@ export const physics = {
                 break;
             }
         }
+
+        for (const body of world.bodies) {
+            if (Math.abs(body.center.x - body.averageCenter.x) > 1) {
+                body.averageCenter.x = body.center.x;
+            }
+            if (Math.abs(body.center.y - body.averageCenter.y) > 1) {
+                body.averageCenter.y = body.center.y;
+            }
+            if (Math.abs(body.angle - body.averageAngle) >= 0.1) {
+                body.averageAngle = body.angle;
+            }
+        }
     },
 
     // 2D vector tools
@@ -320,8 +336,10 @@ const EmptyCollision = (): Collision => {
 // Collision info setter
 function setCollisionInfo(collision: Collision, D: number, N: Vector2, S: Vector2) {
     collision.depth = D; // depth
-    collision.normal = N; // normal
-    collision.start = S; // start
+    collision.normal.x = N.x; // normal
+    collision.normal.y = N.y; // normal
+    collision.start.x = S.x; // start
+    collision.start.y = S.y; // start
     collision.end = physics.addVec2(S, physics.scale(N, D)); // end
 }
 
@@ -337,12 +355,14 @@ function createRigidShape(world: PhysicsWorld, center: Vector2, mass: number, fr
         id: world.nextId++,
         type: type, // 0 circle / 1 rectangle
         center: center, // center
+        averageCenter: physics.Vec2(center.x, center.y),
         friction: friction, // friction
         restitution: restitution, // restitution (bouncing)
         mass: mass ? 1 / mass : 0, // inverseMass (0 if immobile)
         velocity: physics.Vec2(0, 0), // velocity (speed)
         acceleration: mass ? world.gravity : physics.Vec2(0, 0), // acceleration
         angle: 0, // angle
+        averageAngle: 0,
         angularVelocity: 0, // angle velocity
         angularAcceleration: 0, // angle acceleration
         bounds: bounds, // (bounds) radius
@@ -356,7 +376,7 @@ function createRigidShape(world: PhysicsWorld, center: Vector2, mass: number, fr
             physics.Vec2(center.x + width / 2, center.y + height / 2),
             physics.Vec2(center.x - width / 2, center.y + height / 2)
         ],
-        pinned: false
+        pinned: false,
     };
 
     // Prepare rectangle
@@ -431,7 +451,6 @@ function findAxisLeastPenetration(rect: Body, otherRect: Body, collisionInfo: Co
             supportPoint = tmpSupportPoint;
         }
     }
-
     if (hasSupport) {
         // all four directions have support point
         setCollisionInfo(collisionInfo, bestDistance, rect.faceNormals[bestIndex], physics.addVec2(supportPoint as Vector2, physics.scale(rect.faceNormals[bestIndex], bestDistance)));
@@ -442,8 +461,13 @@ function findAxisLeastPenetration(rect: Body, otherRect: Body, collisionInfo: Co
 
 // Test collision between two shapes
 function testCollision(world: PhysicsWorld, c1: Body, c2: Body, collisionInfo: Collision): boolean {
+    // static bodies don't collide with each other
+    if ((c1.mass === 0 && c2.mass === 0)) {
+        return false;
+    }
+
     // Circle vs circle
-    if (!c1.type && !c2.type) {
+    if (c1.type == ShapeType.CIRCLE && c2.type === ShapeType.CIRCLE) {
         const
             vFrom1to2 = physics.subtractVec2(c2.center, c1.center),
             rSum = c1.bounds + c2.bounds,
@@ -461,7 +485,7 @@ function testCollision(world: PhysicsWorld, c1: Body, c2: Body, collisionInfo: C
     }
 
     // Rect vs Rect
-    if (c1.type /*== 1*/ && c2.type /*== 1*/) {
+    if (c1.type == ShapeType.RECTANGLE && c2.type == ShapeType.RECTANGLE) {
         let status1 = false,
             status2 = false;
 
@@ -489,11 +513,11 @@ function testCollision(world: PhysicsWorld, c1: Body, c2: Body, collisionInfo: C
 
     // Rectangle vs Circle
     // (c1 is the rectangle and c2 is the circle, invert the two if needed)
-    if (!c1.type && c2.type /*== 1*/) {
+    if (c1.type === ShapeType.CIRCLE && c2.type === ShapeType.RECTANGLE) {
         [c1, c2] = [c2, c1];
     }
 
-    if (c1.type /*== 1*/ && !c2.type) {
+    if (c1.type === ShapeType.RECTANGLE && c2.type === ShapeType.CIRCLE) {
         let inside = 1,
             bestDistance = -1e9,
             nearestEdge = 0,
@@ -684,7 +708,7 @@ function resolveCollision(world: PhysicsWorld, s1: Body, s2: Body, collisionInfo
     return true;
 }
 
-function createDemoScene(): PhysicsWorld {
+function createDemoScene(count: number, withBoxes: boolean): PhysicsWorld {
     // DEMO
     // ====
     const world = physics.createWorld();
@@ -695,11 +719,13 @@ function createDemoScene(): PhysicsWorld {
     physics.createRectangle(world, physics.Vec2(100, 200), 200, 20, 0, 1, .5);
     physics.createRectangle(world, physics.Vec2(10, 360), 20, 100, 0, 1, .5);
 
-    for (let i = 0; i < 30; i++) {
-        r = physics.createCircle(world, physics.Vec2(Math.random() * 800, Math.random() * 450 / 2), Math.random() * 20 + 10, Math.random() * 30, Math.random() / 2, Math.random() / 2);
-        physics.rotateShape(r, Math.random() * 7);
-        r = physics.createRectangle(world, physics.Vec2(Math.random() * 800, Math.random() * 450 / 2), Math.random() * 20 + 10, Math.random() * 20 + 10, Math.random() * 30, Math.random() / 2, Math.random() / 2);
-        physics.rotateShape(r, Math.random() * 7);
+    for (let i = 0; i < count; i++) {
+        // r = physics.createCircle(world, physics.Vec2(Math.random() * 800, Math.random() * 450 / 2), Math.random() * 20 + 10, Math.random() * 30, Math.random() / 2, Math.random() / 2);
+        // physics.rotateShape(r, Math.random() * 7);
+        if (withBoxes) {
+            r = physics.createRectangle(world, physics.Vec2(Math.random() * 800, Math.random() * 450 / 2), Math.random() * 20 + 10, Math.random() * 20 + 10, Math.random() * 30, Math.random() / 2, Math.random() / 2);
+            physics.rotateShape(r, Math.random() * 7);
+        }
     }
 
     return world;

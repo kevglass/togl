@@ -216,13 +216,9 @@ export const physics = {
                     const distance = physics.lengthVec2(vec);
                     const diff = distance - joint.distance;
                     if (Math.abs(diff) > 1) {
-                        if (other.mass === 0) {
-                            vec = physics.scale(vec, (1/distance) * diff * joint.tightness * body.mass);
-                            body.velocity = physics.addVec2(body.velocity, vec);
-                        } else {
-                            vec = physics.scale(vec, (1/distance) * diff * joint.tightness * 0.5);
-                            physics.moveShape(body, vec);
-                        }
+                        vec = physics.scale(vec, (1/distance) * diff * joint.tightness * (other.mass === 0 ? 1 : 0.5));
+                        physics.moveShape(body, vec);
+                        body.velocity = physics.addVec2(body.velocity, physics.scale(vec, fps));
                     }
                 }
             }

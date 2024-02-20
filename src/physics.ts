@@ -12,6 +12,13 @@ export interface Vector2 {
     y: number;
 }
 
+export interface Joint {
+    bodyA: number;
+    bodyB: number;
+    distance: number;
+    tightness: number;
+}
+
 export interface Collision {
     depth: number;
     normal: Vector2;
@@ -49,7 +56,10 @@ export interface PhysicsWorld {
     angularDamp: number;
     damp: number;
     nextId: number;
+    joints: Joint[];
 }
+
+let firstLog = true;
 
 export const physics = {
     createWorld(): PhysicsWorld {
@@ -61,16 +71,24 @@ export const physics = {
             collisionInfoR2: EmptyCollision(),
             angularDamp: 0.98,
             damp: 0.98,
-            nextId: 1
+            nextId: 1,
+            joints: []
         }
     },
 
-    allowPinnedRotation(shape: Body, mass: number): void {
-        if (shape.type === ShapeType.RECTANGLE) {
-            shape.mass = mass;
-            shape.inertia = (Math.hypot(shape.width, shape.height) / 2, 1 / (shape.mass * (shape.width ** 2 + shape.height ** 2) / 12));
-            shape.pinned = true;
-        }
+    createJoint(world: PhysicsWorld, bodyA: Body, bodyB: Body, tightness: number): void {
+        world.joints.push({
+            bodyA: bodyA.id,
+            bodyB: bodyB.id,
+            distance: physics.lengthVec2(physics.subtractVec2(bodyA.center, bodyB.center)) + 0.5, // add a bit of space to prevent constant collision
+            tightness
+        });
+    },
+
+    allowPinnedRotation(body: Body, mass: number): void {
+        body.mass = mass;
+        body.inertia = calculateInertia(body.type, body.mass, body.bounds, body.width, body.height)
+        body.pinned = true;
     },
 
     renderDemoScene(canvas: HTMLCanvasElement, world: PhysicsWorld) {
@@ -175,11 +193,41 @@ export const physics = {
     worldStep(fps: number, world: PhysicsWorld) {
         for (const body of world.bodies) {
             // Update position/rotation
-            body.velocity = physics.addVec2(body.velocity, physics.scale(body.acceleration, 1 / fps));
-            physics.moveShape(body, physics.scale(body.velocity, 1 / fps));
-            body.angularVelocity += body.angularAcceleration * 1 / fps;
-            physics.rotateShape(body, body.angularVelocity * 1 / fps);
+            if (body.mass !== 0) {
+                body.velocity = physics.addVec2(body.velocity, physics.scale(body.acceleration, 1 / fps));
+                physics.moveShape(body, physics.scale(body.velocity, 1 / fps));
+                body.angularVelocity += body.angularAcceleration * 1 / fps;
+                physics.rotateShape(body, body.angularVelocity * 1 / fps);
+            }
         }
+
+        // apply velocity to try and maintain joints
+        for (const body of world.bodies) {
+            if (body.mass === 0) {
+                continue;
+            }
+
+            const joints = world.joints.filter(j => j.bodyA === body.id || j.bodyB === body.id);
+            for (const joint of joints) {
+                const otherId = joint.bodyA === body.id ? joint.bodyB : joint.bodyA;
+                const other = world.bodies.find(b => b.id === otherId);
+                if (other) {
+                    let vec = physics.subtractVec2(other.center, body.center)
+                    const distance = physics.lengthVec2(vec);
+                    const diff = distance - joint.distance;
+                    if (Math.abs(diff) > 1) {
+                        if (other.mass === 0) {
+                            vec = physics.scale(vec, (1/distance) * diff * joint.tightness * body.mass);
+                            body.velocity = physics.addVec2(body.velocity, vec);
+                        } else {
+                            vec = physics.scale(vec, (1/distance) * diff * joint.tightness * 0.5);
+                            physics.moveShape(body, vec);
+                        }
+                    }
+                }
+            }
+        }
+
 
         const bodies = world.bodies;
 
@@ -281,6 +329,12 @@ function setCollisionInfo(collision: Collision, D: number, N: Vector2, S: Vector
     collision.end = physics.addVec2(S, physics.scale(N, D)); // end
 }
 
+function calculateInertia(type: ShapeType, mass: number, bounds: number, width: number, height: number): number {
+    return type === ShapeType.RECTANGLE // inertia
+        ? (Math.hypot(width, height) / 2, mass > 0 ? 1 / (mass * (width ** 2 + height ** 2) / 12) : 0) // rectangle
+        : (mass > 0 ? (mass * bounds ** 2) / 12 : 0); // circle;
+}
+
 // New shape
 function createRigidShape(world: PhysicsWorld, center: Vector2, mass: number, friction: number, restitution: number, type: number, bounds: number, width = 0, height = 0): Body {
     const shape: Body = {
@@ -298,9 +352,7 @@ function createRigidShape(world: PhysicsWorld, center: Vector2, mass: number, fr
         bounds: bounds, // (bounds) radius
         width: width, // width
         height: height, // height
-        inertia: type // inertia
-            ? (Math.hypot(width, height) / 2, mass > 0 ? 1 / (mass * (width ** 2 + height ** 2) / 12) : 0) // rectangle
-            : (mass > 0 ? (mass * bounds ** 2) / 12 : 0), // circle
+        inertia: calculateInertia(type, mass, bounds, width, height),
         faceNormals: [], // face normals array (rectangles)
         vertices: [ // Vertex: 0: TopLeft, 1: TopRight, 2: BottomRight, 3: BottomLeft (rectangles)
             physics.Vec2(center.x - width / 2, center.y - height / 2),

@@ -36,7 +36,8 @@ export interface Body {
     height: number,
     inertia: number,
     faceNormals: Vector2[]
-    vertices: Vector2[]
+    vertices: Vector2[],
+    pinned: boolean;
 }
 
 export interface PhysicsWorld {
@@ -61,6 +62,14 @@ export const physics = {
             angularDamp: 0.98,
             damp: 0.98,
             nextId: 1
+        }
+    },
+
+    allowPinnedRotation(shape: Body, mass: number): void {
+        if (shape.type === ShapeType.RECTANGLE) {
+            shape.mass = mass;
+            shape.inertia = (Math.hypot(shape.width, shape.height) / 2, 1 / (shape.mass * (shape.width ** 2 + shape.height ** 2) / 12));
+            shape.pinned = true;
         }
     },
 
@@ -123,18 +132,21 @@ export const physics = {
     },
 
     // New rectangle
-    createRectangle(world: PhysicsWorld, center: Vector2, width: number, height: number, mass: number, friction: number, restitution: number, rotate: boolean = false): Body {
+    createRectangle(world: PhysicsWorld, center: Vector2, width: number, height: number, mass: number, friction: number, restitution: number): Body {
         // the original code only works well with whole number static objects
         center.x = Math.floor(center.x);
         center.y = Math.floor(center.y);
         width = Math.floor(width);
         height = Math.floor(height);
 
-        return createRigidShape(world, center, mass, friction, restitution, 1, Math.hypot(width, height) / 2, width, height, rotate);
+        return createRigidShape(world, center, mass, friction, restitution, 1, Math.hypot(width, height) / 2, width, height);
     },
 
     // Move a shape along a vector
     moveShape(shape: Body, v: Vector2) {
+        if (shape.pinned) {
+            return;
+        }
         // Center
         shape.center = physics.addVec2(shape.center, v);
 
@@ -161,34 +173,34 @@ export const physics = {
     },
 
     worldStep(fps: number, world: PhysicsWorld) {
-        const objects = world.bodies;
-
-        for (let i = objects.length; i--;) {
+        for (const body of world.bodies) {
             // Update position/rotation
-            objects[i].velocity = physics.addVec2(objects[i].velocity, physics.scale(objects[i].acceleration, 1 / fps));
-            physics.moveShape(objects[i], physics.scale(objects[i].velocity, 1 / fps));
-            objects[i].angularVelocity += objects[i].angularAcceleration * 1 / fps;
-            physics.rotateShape(objects[i], objects[i].angularVelocity * 1 / fps);
+            body.velocity = physics.addVec2(body.velocity, physics.scale(body.acceleration, 1 / fps));
+            physics.moveShape(body, physics.scale(body.velocity, 1 / fps));
+            body.angularVelocity += body.angularAcceleration * 1 / fps;
+            physics.rotateShape(body, body.angularVelocity * 1 / fps);
         }
+
+        const bodies = world.bodies;
 
         // Compute collisions and iterate to resolve
         for (let k = 9; k--;) {
             let collision = false;
 
-            for (let i = objects.length; i--;) {
-                for (let j = objects.length; j-- > i;) {
+            for (let i = bodies.length; i--;) {
+                for (let j = bodies.length; j-- > i;) {
                     // don't collide two static objects
-                    if ((objects[i].mass === 0) && (objects[j].mass === 0)) {
+                    if ((bodies[i].mass === 0) && (bodies[j].mass === 0)) {
                         continue;
                     }
                     // Test bounds
-                    if (boundTest(objects[i], objects[j])) {
+                    if (boundTest(bodies[i], bodies[j])) {
 
                         // Test collision
-                        if (testCollision(world, objects[i], objects[j], world.collisionInfo)) {
+                        if (testCollision(world, bodies[i], bodies[j], world.collisionInfo)) {
 
                             // Make sure the normal is always from object[i] to object[j]
-                            if (physics.dotProduct(world.collisionInfo.normal, physics.subtractVec2(objects[j].center, objects[i].center)) < 0) {
+                            if (physics.dotProduct(world.collisionInfo.normal, physics.subtractVec2(bodies[j].center, bodies[i].center)) < 0) {
                                 world.collisionInfo = {
                                     depth: world.collisionInfo.depth,
                                     normal: physics.scale(world.collisionInfo.normal, -1),
@@ -198,7 +210,7 @@ export const physics = {
                             }
 
                             // Resolve collision
-                            if (resolveCollision(world, objects[i], objects[j], world.collisionInfo)) {
+                            if (resolveCollision(world, bodies[i], bodies[j], world.collisionInfo)) {
                                 collision = true;
                             }
                         }
@@ -270,7 +282,7 @@ function setCollisionInfo(collision: Collision, D: number, N: Vector2, S: Vector
 }
 
 // New shape
-function createRigidShape(world: PhysicsWorld, center: Vector2, mass: number, friction: number, restitution: number, type: number, bounds: number, width = 0, height = 0, rotate: boolean = false): Body {
+function createRigidShape(world: PhysicsWorld, center: Vector2, mass: number, friction: number, restitution: number, type: number, bounds: number, width = 0, height = 0): Body {
     const shape: Body = {
         id: world.nextId++,
         type: type, // 0 circle / 1 rectangle
@@ -287,7 +299,7 @@ function createRigidShape(world: PhysicsWorld, center: Vector2, mass: number, fr
         width: width, // width
         height: height, // height
         inertia: type // inertia
-            ? (Math.hypot(width, height) / 2, mass > 0 ? 1 / (mass * (width ** 2 + height ** 2) / 12) : (rotate ? 0.01 : 0)) // rectangle
+            ? (Math.hypot(width, height) / 2, mass > 0 ? 1 / (mass * (width ** 2 + height ** 2) / 12) : 0) // rectangle
             : (mass > 0 ? (mass * bounds ** 2) / 12 : 0), // circle
         faceNormals: [], // face normals array (rectangles)
         vertices: [ // Vertex: 0: TopLeft, 1: TopRight, 2: BottomRight, 3: BottomLeft (rectangles)
@@ -295,7 +307,8 @@ function createRigidShape(world: PhysicsWorld, center: Vector2, mass: number, fr
             physics.Vec2(center.x + width / 2, center.y - height / 2),
             physics.Vec2(center.x + width / 2, center.y + height / 2),
             physics.Vec2(center.x - width / 2, center.y + height / 2)
-        ]
+        ],
+        pinned: false
     };
 
     // Prepare rectangle
@@ -537,9 +550,9 @@ function resolveCollision(world: PhysicsWorld, s1: Body, s2: Body, collisionInfo
     if (physics.lengthVec2(correctionAmount) === 0) {
         return false;
     }
+
     physics.moveShape(s1, physics.scale(correctionAmount, -s1.mass));
     physics.moveShape(s2, physics.scale(correctionAmount, s2.mass));
-
 
     // the direction of collisionInfo is always from s1 to s2
     // but the Mass is inversed, so start scale with s2 and end scale with s1
@@ -612,6 +625,14 @@ function resolveCollision(world: PhysicsWorld, s1: Body, s2: Body, collisionInfo
     s1.angularVelocity *= world.angularDamp;
     s2.angularVelocity *= world.angularDamp;
 
+    if (s1.pinned) {
+        s1.velocity.x = 0;
+        s1.velocity.y = 0;
+    }
+    if (s2.pinned) {
+        s2.velocity.x = 0;
+        s2.velocity.y = 0;
+    }
     return true;
 }
 

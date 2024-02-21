@@ -1,5 +1,5 @@
 import potpack from "potpack";
-import { GameImage, Offscreen, Renderer, TileSet } from "./graphics";
+import { graphics } from "./graphics";
 import { resources } from "./resources";
 
 let canvas: HTMLCanvasElement;
@@ -46,12 +46,12 @@ let renderStates: RenderState[] = [];
 
 let bitmaps: WebGLBitmap[] = [];
 
-interface WebGLOffscreen extends Offscreen {
+interface WebGLOffscreen extends graphics.Offscreen {
     texture: WebGLTexture | null;
     fb: WebGLFramebuffer | null;
 }
 
-interface WebGLBitmap extends GameImage {
+interface WebGLBitmap extends graphics.GameImage {
     texX: number;
     texY: number;
     texIndex: number;
@@ -69,8 +69,8 @@ interface RenderState {
 
 let pixelatedRendering = false;
 
-export const webglRenderer: Renderer = {
-    init(c: HTMLCanvasElement, pixelatedRenderingEnabled: boolean): Renderer {
+export const webglRenderer: graphics.Renderer = {
+    init(c: HTMLCanvasElement, pixelatedRenderingEnabled: boolean): graphics.Renderer {
         pixelatedRendering = pixelatedRenderingEnabled;
 
         canvas = c;
@@ -90,7 +90,7 @@ export const webglRenderer: Renderer = {
         initGlResources();
         return webglRenderer;
     },
-    loadImage(url: string, track: boolean, id?: string): GameImage {
+    loadImage(url: string, track: boolean, id?: string): graphics.GameImage {
         if (track) {
             resources.resourceRequested(url);
         }
@@ -126,7 +126,7 @@ export const webglRenderer: Renderer = {
 
         return bitmap;
     },
-    loadTileSet(url: string, tw: number, th: number, id?: string): TileSet {
+    loadTileSet(url: string, tw: number, th: number, id?: string): graphics.TileSet {
         resources.resourceRequested(url);
         const bitmap: WebGLBitmap = {
             id: "",
@@ -154,7 +154,7 @@ export const webglRenderer: Renderer = {
         };
         image.src = url;
 
-        const tileset: TileSet = {
+        const tileset: graphics.TileSet = {
             image: bitmap,
             tileWidth: tw,
             tileHeight: th,
@@ -164,7 +164,7 @@ export const webglRenderer: Renderer = {
         return tileset;
     },
 
-    drawTile(tiles: TileSet, x: number, y: number, tile: number, width?: number, height?: number): void {
+    drawTile(tiles: graphics.TileSet, x: number, y: number, tile: number, width?: number, height?: number): void {
         const bitmap = tiles.image as WebGLBitmap;
 
         if (!bitmap.image) {
@@ -221,7 +221,7 @@ export const webglRenderer: Renderer = {
         }
         _drawImage(0, 0, 0, 1, 1, x, y, width, height, rgba, a)
     },
-    drawImage(image: GameImage, x: number, y: number, width?: number, height?: number): void {
+    drawImage(image: graphics.GameImage, x: number, y: number, width?: number, height?: number): void {
         const bitmap = image as WebGLBitmap;
 
         width = width ? Math.floor(width) : image.width;
@@ -260,7 +260,7 @@ export const webglRenderer: Renderer = {
         _initResourceOnLoaded();
     },
 
-    createOffscreen(width: number, height: number): Offscreen {
+    createOffscreen(width: number, height: number): graphics.Offscreen {
         const offscreen: WebGLOffscreen = {
             width,
             height,
@@ -273,7 +273,7 @@ export const webglRenderer: Renderer = {
     },
 
 
-    drawOffscreenSection(o: Offscreen, x: number, y: number, sx: number, sy: number, width: number, height: number): void {
+    drawOffscreenSection(o: graphics.Offscreen, x: number, y: number, sx: number, sy: number, width: number, height: number): void {
         const offscreen: WebGLOffscreen = o as WebGLOffscreen;
 
         glCommitContext();
@@ -289,7 +289,7 @@ export const webglRenderer: Renderer = {
         glStartContext();
     },
 
-    drawOffscreen(o: Offscreen, x: number, y: number): void {
+    drawOffscreen(o: graphics.Offscreen, x: number, y: number): void {
         const offscreen: WebGLOffscreen = o as WebGLOffscreen;
 
         glCommitContext();
@@ -306,7 +306,7 @@ export const webglRenderer: Renderer = {
         
     },
 
-    drawToOffscreen(offscreen: Offscreen): void {
+    drawToOffscreen(offscreen: graphics.Offscreen): void {
         useFrameBuffer(offscreen as WebGLOffscreen);
     },
 

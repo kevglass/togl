@@ -1,5 +1,5 @@
 import { canvasRenderer } from "./canvasRenderer";
-import { ResourceListener, resources } from "./resources";
+import { resources } from "./resources";
 import { sound } from "./sound";
 import { webglRenderer } from "./webglRenderer";
 
@@ -7,228 +7,228 @@ import { webglRenderer } from "./webglRenderer";
 // a canvas. It's wrapped with a view to replacing it with something decent
 console.log("TOGL 1.03");
 
-const canvas = document.getElementById("gamecanvas") as HTMLCanvasElement;
-let eventListener: Game | undefined;
-let mouseDown = false;
+export namespace graphics {
+    const canvas = document.getElementById("gamecanvas") as HTMLCanvasElement;
+    let eventListener: Game | undefined;
+    let mouseDown = false;
 
-export type FontCharacterWidth = [number, string];
-export type FontCharacterWidths = FontCharacterWidth[];
+    export type FontCharacterWidth = [number, string];
+    export type FontCharacterWidths = FontCharacterWidth[];
 
-export interface Offscreen {
-    width: number;
-    height: number;
-}
-
-export interface GameFont {
-    lineHeight: number;
-    tiles: TileSet;
-    widths: FontCharacterWidths;
-    chars: string;
-    baseline: number;
-}
-
-export enum RendererType {
-    CANVAS = "canvas",
-    WEBGL = "webgl",
-}
-
-export interface GameImage {
-    id: string;
-    width: number;
-    height: number;
-}
-
-// a tile set cuts an imag into pieces to be used as sprites
-export interface TileSet {
-    image: GameImage;
-    tileWidth: number;
-    tileHeight: number;
-    tiles: GameImage[];
-}
-
-// a hook back for mouse/touch events
-export interface Game extends ResourceListener {
-    mouseDown(x: number, y: number, index: number): void;
-    mouseDrag(x: number, y: number, index: number): void;
-    mouseUp(x: number, y: number, index: number): void;
-    keyDown(key: string): void;
-    keyUp(key: string): void;
-    resourcesLoaded(): void;
-    render(): void;
-}
-
-document.addEventListener('contextmenu', event => {
-    event.preventDefault();
-});
-
-canvas.addEventListener('contextmenu', event => {
-    event.preventDefault();
-});
-
-canvas.addEventListener("touchstart", (event) => {
-    sound.resumeAudioOnInput();
-    canvas.focus();
-
-    for (const touch of event.changedTouches) {
-        eventListener?.mouseDown(touch.clientX, touch.clientY, touch.identifier);
+    export interface Offscreen {
+        width: number;
+        height: number;
     }
 
-    event.stopPropagation();
-    event.preventDefault();
-});
-
-canvas.setAttribute("tabindex", "0");
-
-canvas.addEventListener("keydown", (event) => {
-    eventListener?.keyDown(event.key);
-});
-
-canvas.addEventListener("keyup", (event) => {
-    eventListener?.keyUp(event.key);
-});
-
-canvas.addEventListener("touchend", (event) => {
-    sound.resumeAudioOnInput();
-
-    for (const touch of event.changedTouches) {
-        eventListener?.mouseUp(touch.clientX, touch.clientY, touch.identifier);
+    export interface GameFont {
+        lineHeight: number;
+        tiles: TileSet;
+        widths: FontCharacterWidths;
+        chars: string;
+        baseline: number;
     }
 
-    event.stopPropagation();
-    event.preventDefault();
-});
-
-canvas.addEventListener("touchmove", (event) => {
-    sound.resumeAudioOnInput();
-
-    for (const touch of event.changedTouches) {
-        eventListener?.mouseDrag(touch.clientX, touch.clientY, touch.identifier);
+    export enum RendererType {
+        CANVAS = "canvas",
+        WEBGL = "webgl",
     }
 
-    event.stopPropagation();
-    event.preventDefault();
-});
+    export interface GameImage {
+        id: string;
+        width: number;
+        height: number;
+    }
 
-canvas.addEventListener("mousedown", (event) => {
-    sound.resumeAudioOnInput();
-    canvas.focus();
+    // a tile set cuts an imag into pieces to be used as sprites
+    export interface TileSet {
+        image: GameImage;
+        tileWidth: number;
+        tileHeight: number;
+        tiles: GameImage[];
+    }
 
-    eventListener?.mouseDown(event.x, event.y, event.button);
-    mouseDown = true;
+    // a hook back for mouse/touch events
+    export interface Game extends resources.ResourceListener {
+        mouseDown(x: number, y: number, index: number): void;
+        mouseDrag(x: number, y: number, index: number): void;
+        mouseUp(x: number, y: number, index: number): void;
+        keyDown(key: string): void;
+        keyUp(key: string): void;
+        resourcesLoaded(): void;
+        render(): void;
+    }
 
-    event.stopPropagation();
-    event.preventDefault();
-});
+    document.addEventListener('contextmenu', event => {
+        event.preventDefault();
+    });
 
-canvas.addEventListener("mousemove", (event) => {
-    sound.resumeAudioOnInput();
-    if (mouseDown) {
-        eventListener?.mouseDrag(event.x, event.y, event.button);
+    canvas.addEventListener('contextmenu', event => {
+        event.preventDefault();
+    });
+
+    canvas.addEventListener("touchstart", (event) => {
+        sound.resumeAudioOnInput();
+        canvas.focus();
+
+        for (const touch of event.changedTouches) {
+            eventListener?.mouseDown(touch.clientX, touch.clientY, touch.identifier);
+        }
 
         event.stopPropagation();
         event.preventDefault();
-    }
-});
+    });
 
-canvas.addEventListener("mouseup", (event) => {
-    sound.resumeAudioOnInput();
-    mouseDown = false;
+    canvas.setAttribute("tabindex", "0");
 
-    eventListener?.mouseUp(event.x, event.y, event.button);
+    canvas.addEventListener("keydown", (event) => {
+        eventListener?.keyDown(event.key);
+    });
 
-    event.stopPropagation();
-});
+    canvas.addEventListener("keyup", (event) => {
+        eventListener?.keyUp(event.key);
+    });
 
-function loop(game: Game): void {
-    if (currentRenderer.ready()) {
-        // give the utility classes a chance to update based on 
-        // screen size etc
-        graphics.update();
-        currentRenderer.preRender();
+    canvas.addEventListener("touchend", (event) => {
+        sound.resumeAudioOnInput();
 
-        game.render();
-
-        currentRenderer.postRender();
-
-        frameCount++;
-        if (Date.now() - lastFPS > 1000) {
-            fps = frameCount;
-            frameCount = 0;
-            lastFPS = Date.now();
+        for (const touch of event.changedTouches) {
+            eventListener?.mouseUp(touch.clientX, touch.clientY, touch.identifier);
         }
+
+        event.stopPropagation();
+        event.preventDefault();
+    });
+
+    canvas.addEventListener("touchmove", (event) => {
+        sound.resumeAudioOnInput();
+
+        for (const touch of event.changedTouches) {
+            eventListener?.mouseDrag(touch.clientX, touch.clientY, touch.identifier);
+        }
+
+        event.stopPropagation();
+        event.preventDefault();
+    });
+
+    canvas.addEventListener("mousedown", (event) => {
+        sound.resumeAudioOnInput();
+        canvas.focus();
+
+        eventListener?.mouseDown(event.x, event.y, event.button);
+        mouseDown = true;
+
+        event.stopPropagation();
+        event.preventDefault();
+    });
+
+    canvas.addEventListener("mousemove", (event) => {
+        sound.resumeAudioOnInput();
+        if (mouseDown) {
+            eventListener?.mouseDrag(event.x, event.y, event.button);
+
+            event.stopPropagation();
+            event.preventDefault();
+        }
+    });
+
+    canvas.addEventListener("mouseup", (event) => {
+        sound.resumeAudioOnInput();
+        mouseDown = false;
+
+        eventListener?.mouseUp(event.x, event.y, event.button);
+
+        event.stopPropagation();
+    });
+
+    function loop(game: Game): void {
+        if (currentRenderer.ready()) {
+            // give the utility classes a chance to update based on 
+            // screen size etc
+            graphics.update();
+            currentRenderer.preRender();
+
+            game.render();
+
+            currentRenderer.postRender();
+
+            frameCount++;
+            if (Date.now() - lastFPS > 1000) {
+                fps = frameCount;
+                frameCount = 0;
+                lastFPS = Date.now();
+            }
+        }
+        requestAnimationFrame(() => { loop(game) });
     }
-    requestAnimationFrame(() => { loop(game) });
-}
 
-export interface Renderer {
-    init(canvas: HTMLCanvasElement, pixelatedRenderingEnabled: boolean): Renderer;
+    export interface Renderer {
+        init(canvas: HTMLCanvasElement, pixelatedRenderingEnabled: boolean): Renderer;
 
-    loadImage(url: string, track: boolean, id?: string): GameImage
+        loadImage(url: string, track: boolean, id?: string): GameImage
 
-    // load an image and store it with tileset information
-    loadTileSet(url: string, tw: number, th: number, id?: string): TileSet;
+        // load an image and store it with tileset information
+        loadTileSet(url: string, tw: number, th: number, id?: string): TileSet;
 
-    // Draw a single tile from a tile set by default at its natural size
-    drawTile(tiles: TileSet, x: number, y: number, tile: number, width: number, height: number): void;
+        // Draw a single tile from a tile set by default at its natural size
+        drawTile(tiles: TileSet, x: number, y: number, tile: number, width: number, height: number): void;
 
-    // draw a rectangle outlined to the canvas
-    drawRect(x: number, y: number, width: number, height: number, col: string): void;
+        // draw a rectangle outlined to the canvas
+        drawRect(x: number, y: number, width: number, height: number, col: string): void;
 
-    // fill a rectangle to the canvas
-    fillRect(x: number, y: number, width: number, height: number, col: string): void;
+        // fill a rectangle to the canvas
+        fillRect(x: number, y: number, width: number, height: number, col: string): void;
 
-    // draw an image to the canvas 
-    drawImage(image: GameImage, x: number, y: number, width?: number, height?: number): void;
+        // draw an image to the canvas 
+        drawImage(image: GameImage, x: number, y: number, width?: number, height?: number): void;
 
-    // store the current 'state' of the canvas. This includes transforms, alphas, clips etc
-    push(): void;
+        // store the current 'state' of the canvas. This includes transforms, alphas, clips etc
+        push(): void;
 
-    // restore the next 'state' of the canvas on the stack.
-    pop(): void;
+        // restore the next 'state' of the canvas on the stack.
+        pop(): void;
 
-    // set the alpha value to use when rendering 
-    alpha(alpha: number): void;
+        // set the alpha value to use when rendering 
+        alpha(alpha: number): void;
 
-    // translate the rendering context by a given amount
-    translate(x: number, y: number): void;
+        // translate the rendering context by a given amount
+        translate(x: number, y: number): void;
 
-    rotate(ang: number): void;
+        rotate(ang: number): void;
 
-    // scale the rendering context by a given amount
-    scale(x: number, y: number): void;
+        // scale the rendering context by a given amount
+        scale(x: number, y: number): void;
 
-    initResourceOnLoaded(): void;
+        initResourceOnLoaded(): void;
 
-    preRender(): void;
+        preRender(): void;
 
-    postRender(): void;
+        postRender(): void;
 
-    createOffscreen(width: number, height: number): Offscreen;
+        createOffscreen(width: number, height: number): Offscreen;
 
-    drawOffscreen(offscreen: Offscreen, x: number, y: number): void;
+        drawOffscreen(offscreen: Offscreen, x: number, y: number): void;
 
-    drawOffscreenSection(offscreen: Offscreen, x: number, y: number, sx: number, sy: number, width: number, height: number): void;
+        drawOffscreenSection(offscreen: Offscreen, x: number, y: number, sx: number, sy: number, width: number, height: number): void;
 
-    drawToOffscreen(offscreen: Offscreen): void;
+        drawToOffscreen(offscreen: Offscreen): void;
 
-    drawToMain(): void;
+        drawToMain(): void;
 
-    ready(): boolean;
+        ready(): boolean;
 
-    clearRect(x: number, y: number, width: number, height: number): void;
+        clearRect(x: number, y: number, width: number, height: number): void;
 
-    getDrawCount(): number;
+        getDrawCount(): number;
 
-    resize(): void;
-}
+        resize(): void;
+    }
 
-let currentRenderer: Renderer;
-let lastFPS: number = 0;
-let frameCount: number = 0;
-let fps: number = 0;
+    let currentRenderer: Renderer;
+    let lastFPS: number = 0;
+    let frameCount: number = 0;
+    let fps: number = 0;
 
-export const graphics = {
-    init(rendererType: RendererType, pixelatedRenderingEnabled = false): void {
+    export function init(rendererType: RendererType, pixelatedRenderingEnabled = false): void {
         console.log("TOGL Renderer: " + rendererType + " (pixelated = " + pixelatedRenderingEnabled + ")");
 
         if (rendererType === RendererType.CANVAS) {
@@ -237,39 +237,44 @@ export const graphics = {
         if (rendererType === RendererType.WEBGL) {
             currentRenderer = webglRenderer.init(canvas, pixelatedRenderingEnabled);
         }
-    },
+    }
 
     // register an event listener for mouse/touch events
-    startRendering(game: Game): void {
+    export function startRendering(game: Game): void {
         eventListener = game;
-        resources.registerResourceListener(game);
+        resources.addResourceListener(game);
+        resources.addResourceListener({
+            resourcesLoaded(): void {
+                initResourceOnLoaded();
+            }
+        });
 
         // start the rendering loop
         requestAnimationFrame(() => { loop(game) });
-    },
+    }
 
-    getFPS(): number {
+    export function getFPS(): number {
         return fps;
-    },
+    }
 
-    width(): number {
+    export function width(): number {
         return canvas.width;
-    },
+    }
 
-    height(): number {
+    export function height(): number {
         return canvas.height;
-    },
+    }
 
-    loadImage(url: string, track = true, id?: string): GameImage {
+    export function loadImage(url: string, track = true, id?: string): GameImage {
         return currentRenderer.loadImage(url, track);
-    },
+    }
 
     // load an image and store it with tileset information
-    loadTileSet(url: string, tw: number, th: number, id?: string): TileSet {
+    export function loadTileSet(url: string, tw: number, th: number, id?: string): TileSet {
         return currentRenderer.loadTileSet(url, tw, th, id);
-    },
+    }
 
-    generateFont(size: number, col: string, charset?: string): GameFont {
+    export function generateFont(size: number, col: string, charset?: string): GameFont {
         const characterSet = charset ??
             "ABCDEFGHIJKLMNOPQRSTUVWXYZ" +
             "abcdefghijklmnopqrstuvwxyz" +
@@ -329,9 +334,9 @@ export const graphics = {
             widths,
             lineHeight: th
         }
-    },
+    }
 
-    createFont(tiles: TileSet, lineHeight: number, widths: FontCharacterWidths, chars: string, baseline: number): GameFont {
+    export function createFont(tiles: TileSet, lineHeight: number, widths: FontCharacterWidths, chars: string, baseline: number): GameFont {
         return {
             tiles,
             lineHeight,
@@ -339,23 +344,23 @@ export const graphics = {
             chars,
             baseline
         }
-    },
+    }
 
     // Draw a single tile from a tile set by default at its natural size
-    drawTile(tiles: TileSet, x: number, y: number, tile: number, width: number = tiles.tileWidth, height: number = tiles.tileHeight): void {
+    export function drawTile(tiles: TileSet, x: number, y: number, tile: number, width: number = tiles.tileWidth, height: number = tiles.tileHeight): void {
         currentRenderer.drawTile(tiles, x, y, tile, width, height);
-    },
+    }
 
-    outlineText(x: number, y: number, str: string, font: GameFont, outlineWidth: number, outlineFont: GameFont): void {
+    export function outlineText(x: number, y: number, str: string, font: GameFont, outlineWidth: number, outlineFont: GameFont): void {
         graphics.drawText(x - outlineWidth, y - outlineWidth, str, outlineFont);
         graphics.drawText(x + outlineWidth, y - outlineWidth, str, outlineFont);
         graphics.drawText(x - outlineWidth, y + outlineWidth, str, outlineFont);
         graphics.drawText(x + outlineWidth, y + outlineWidth, str, outlineFont);
         graphics.drawText(x, y, str, font);
-    },
+    }
 
     // draw text at the given location 
-    drawText(x: number, y: number, text: string, font: GameFont): void {
+    export function drawText(x: number, y: number, text: string, font: GameFont): void {
         graphics.push();
         graphics.translate(x, y - font.baseline);
 
@@ -375,15 +380,15 @@ export const graphics = {
         }
 
         graphics.pop();
-    },
+    }
 
     // draw a rectangle outlined to the canvas
-    drawRect(x: number, y: number, width: number, height: number, col: string): void {
+    export function drawRect(x: number, y: number, width: number, height: number, col: string): void {
         currentRenderer.drawRect(x, y, width, height, col);
-    },
+    }
 
     // determine the width of a string when rendered at a given size
-    textWidth(text: string, font: GameFont) {
+    export function textWidth(text: string, font: GameFont) {
         let x = 0;
         for (let i = 0; i < text.length; i++) {
             const c = text.charAt(i);
@@ -398,15 +403,15 @@ export const graphics = {
         }
 
         return x;
-    },
+    }
 
     // draw a string onto the canvas centring it on the screen
-    centerText(text: string, y: number, font: GameFont): void {
-        graphics.drawText(Math.floor((graphics.width() - this.textWidth(text, font)) / 2), y, text, font);
-    },
+    export function centerText(text: string, y: number, font: GameFont): void {
+        graphics.drawText(Math.floor((graphics.width() - graphics.textWidth(text, font)) / 2), y, text, font);
+    }
 
     // give the graphics to do anything it needs to do per frame
-    update(): void {
+    export function update(): void {
         const screenWidth = Math.floor(window.innerWidth);
         const screenHeight = Math.floor(window.innerHeight);
 
@@ -415,76 +420,76 @@ export const graphics = {
             canvas.height = screenHeight;
             currentRenderer.resize();
         }
-    },
+    }
 
     // fill a rectangle to the canvas
-    fillRect(x: number, y: number, width: number, height: number, col: string) {
+    export function fillRect(x: number, y: number, width: number, height: number, col: string) {
         currentRenderer.fillRect(x, y, width, height, col);
-    },
+    }
 
     // draw an image to the canvas 
-    drawImage(image: GameImage, x: number, y: number, width?: number, height?: number): void {
+    export function drawImage(image: GameImage, x: number, y: number, width?: number, height?: number): void {
         currentRenderer.drawImage(image, x, y, width, height);
-    },
+    }
 
     // store the current 'state' of the canvas. This includes transforms, alphas, clips etc
-    push() {
+    export function push() {
         currentRenderer.push();
-    },
+    }
 
     // restore the next 'state' of the canvas on the stack.
-    pop() {
+    export function pop() {
         currentRenderer.pop();
-    },
+    }
 
     // set the alpha value to use when rendering 
-    alpha(alpha: number): void {
+    export function alpha(alpha: number): void {
         currentRenderer.alpha(alpha);
-    },
+    }
 
     // translate the rendering context by a given amount
-    translate(x: number, y: number): void {
+    export function translate(x: number, y: number): void {
         currentRenderer.translate(x, y);
-    },
+    }
 
     // scale the rendering context by a given amount
-    scale(x: number, y: number): void {
+    export function scale(x: number, y: number): void {
         currentRenderer.scale(x, y);
-    },
+    }
 
-    rotate(ang: number): void {
+    export function rotate(ang: number): void {
         currentRenderer.rotate(ang);
-    },
+    }
 
-    initResourceOnLoaded(): void {
+    export function initResourceOnLoaded(): void {
         currentRenderer.initResourceOnLoaded();
-    },
+    }
 
-    createOffscreen(width: number, height: number): Offscreen {
+    export function createOffscreen(width: number, height: number): Offscreen {
         return currentRenderer.createOffscreen(width, height);
-    },
+    }
 
-    drawOffscreen(offscreen: Offscreen, x: number, y: number): void {
+    export function drawOffscreen(offscreen: Offscreen, x: number, y: number): void {
         currentRenderer.drawOffscreen(offscreen, x, y);
-    },
+    }
 
-    drawOffscreenSection(offscreen: Offscreen, x: number, y: number, sx: number, sy: number, width: number, height: number): void {
+    export function drawOffscreenSection(offscreen: Offscreen, x: number, y: number, sx: number, sy: number, width: number, height: number): void {
         currentRenderer.drawOffscreenSection(offscreen, x, y, sx, sy, width, height);
-    },
+    }
 
-    drawToOffscreen(offscreen: Offscreen): void {
+    export function drawToOffscreen(offscreen: Offscreen): void {
         currentRenderer.drawToOffscreen(offscreen);
-    },
+    }
 
-    drawToMain(): void {
+    export function drawToMain(): void {
         currentRenderer.drawToMain();
-    },
+    }
 
-    clearRect(x: number, y: number, width: number, height: number): void {
-        currentRenderer.clearRect(x,y,width,height);
-    },
+    export function clearRect(x: number, y: number, width: number, height: number): void {
+        currentRenderer.clearRect(x, y, width, height);
+    }
 
-    getDrawCount(): number {
+    export function getDrawCount(): number {
         return currentRenderer.getDrawCount();
     }
 }

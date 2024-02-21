@@ -7,6 +7,16 @@
   "files": [
     "/dist"
   ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./logic": {
+      "types": "./dist/logic.d.ts",
+      "default": "./dist/logic.js"
+    }
+  },
   "scripts": {
     "build": "tsc",
     "watch": "tsc --watch"

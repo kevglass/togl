@@ -185,6 +185,9 @@ export namespace physics {
 
             for (let i = bodies.length; i--;) {
                 for (let j = bodies.length; j-- > i;) {
+                    if (i === j) {
+                        continue;
+                    }
                     // don't collide two static objects
                     if ((bodies[i].mass === 0) && (bodies[j].mass === 0)) {
                         continue;

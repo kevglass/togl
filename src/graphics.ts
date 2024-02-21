@@ -5,7 +5,7 @@ import { webglRenderer } from "./webglRenderer";
 
 // This is a very brute force simple renderer. It's just blitting images and text to 
 // a canvas. It's wrapped with a view to replacing it with something decent
-console.log("TOGL 1.0.4");
+console.log("TOGL 1.1.0");
 
 export namespace graphics {
     const canvas = document.getElementById("gamecanvas") as HTMLCanvasElement;

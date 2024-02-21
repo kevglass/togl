@@ -10,8 +10,8 @@
     "resolveJsonModule": true,
     "isolatedModules": true,
     "noEmit": false,
-    "allowImportingTsExtensions": true,
-    "emitDeclarationOnly": true,
+    "allowImportingTsExtensions": false,
+    "emitDeclarationOnly": false,
     "declaration": true,
     /* Linting */
     "strict": true,

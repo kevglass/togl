@@ -1,5 +1,5 @@
-import { Offscreen, Renderer, TileSet, GameImage } from "./graphics";
-import { resourceRequested, resourceLoaded } from "./resources";
+import { graphics } from "./graphics";
+import { resources } from "./resources";
 
 // This is a very brute force simple renderer. It's just blitting images and text to 
 // a canvas. It's wrapped with a view to replacing it with something decent
@@ -11,13 +11,13 @@ const scaledImageCache: Record<string, Record<number, CanvasImageSource>> = {};
 declare let InstallTrigger: any;
 var isFirefox = typeof InstallTrigger !== 'undefined';
 
-interface CanvasOffscreen extends Offscreen {
+interface CanvasOffscreen extends graphics.Offscreen {
     canvas: HTMLCanvasElement;
     ctx: CanvasRenderingContext2D;
 }
 
-export const canvasRenderer: Renderer = {
-    init(canvas: HTMLCanvasElement, pixelatedRenderingEnabled: boolean): Renderer {
+export const canvasRenderer: graphics.Renderer = {
+    init(canvas: HTMLCanvasElement, pixelatedRenderingEnabled: boolean): graphics.Renderer {
         mainCtx = ctx = canvas.getContext("2d") as CanvasRenderingContext2D;
 
         if (pixelatedRenderingEnabled) {
@@ -45,7 +45,7 @@ export const canvasRenderer: Renderer = {
 
     loadImage(url: string, track = true, id?: string): HTMLImageElement {
         if (track) {
-            resourceRequested(url);
+           resources.resourceRequested(url);
         }
         const image = new Image();
         image.src = url;
@@ -58,7 +58,7 @@ export const canvasRenderer: Renderer = {
             scaledImageCache[image.id][image.width + (image.height * 10000)] = image;
 
             if (track) {
-                resourceLoaded(url);
+                resources.resourceLoaded(url);
             }
         };
 
@@ -66,8 +66,8 @@ export const canvasRenderer: Renderer = {
     },
 
     // load an image and store it with tileset information
-    loadTileSet(url: string, tw: number, th: number, id?: string): TileSet {
-        resourceRequested(url);
+    loadTileSet(url: string, tw: number, th: number, id?: string): graphics.TileSet {
+        resources.resourceRequested(url);
 
         const image = new Image();
         image.src = url;
@@ -79,14 +79,14 @@ export const canvasRenderer: Renderer = {
             scaledImageCache[image.id] = {};
             scaledImageCache[image.id][image.width + (image.height * 10000)] = image;
 
-            resourceLoaded(url);
+            resources.resourceLoaded(url);
         };
 
         return { image, tileWidth: tw, tileHeight: th, tiles: [] };
     },
 
     // Draw a single tile from a tile set by default at its natural size
-    drawTile(tiles: TileSet, x: number, y: number, tile: number, width?: number, height?: number): void {
+    drawTile(tiles: graphics.TileSet, x: number, y: number, tile: number, width?: number, height?: number): void {
         x = Math.floor(x);
         y = Math.floor(y);
 
@@ -120,7 +120,7 @@ export const canvasRenderer: Renderer = {
     },
 
     // draw an image to the canvas 
-    drawImage(image: GameImage, x: number, y: number, width?: number, height?: number): void {
+    drawImage(image: graphics.GameImage, x: number, y: number, width?: number, height?: number): void {
         x = Math.floor(x);
         y = Math.floor(y);
         width = width ? Math.floor(width) : image.width;
@@ -178,7 +178,7 @@ export const canvasRenderer: Renderer = {
     initResourceOnLoaded: function (): void {
     },
     
-    createOffscreen(width: number, height: number): Offscreen {
+    createOffscreen(width: number, height: number): graphics.Offscreen {
         const canvas = document.createElement("canvas");
         canvas.width = width;
         canvas.height = height;
@@ -198,15 +198,15 @@ export const canvasRenderer: Renderer = {
         return 0;
     },
 
-    drawOffscreen(offscreen: Offscreen, x: number, y: number): void {
+    drawOffscreen(offscreen: graphics.Offscreen, x: number, y: number): void {
         ctx.drawImage((offscreen as CanvasOffscreen).canvas, x, y);
     },
 
-    drawOffscreenSection(offscreen: Offscreen, x: number, y: number, sx: number, sy: number, width: number, height: number): void {
+    drawOffscreenSection(offscreen: graphics.Offscreen, x: number, y: number, sx: number, sy: number, width: number, height: number): void {
         ctx.drawImage((offscreen as CanvasOffscreen).canvas, x, y, width, height, sx, sy, width, height);
     },
 
-    drawToOffscreen(offscreen: Offscreen): void {
+    drawToOffscreen(offscreen: graphics.Offscreen): void {
         ctx = (offscreen as CanvasOffscreen).ctx;
         canvasRenderer.push();
     },

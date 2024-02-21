@@ -1,2 +1,2 @@
-export { physics } from "./physics"
-export { xml } from "./xml"
+export * from "./physics"
+export * from "./xml"

@@ -1,5 +1,5 @@
-export { graphics } from "./graphics";
-export { physics } from "./physics";
-export { resources } from "./resources";
-export { sound } from "./sound";
-export { xml } from "./xml"
+export * from "./graphics";
+export * from "./physics";
+export * from "./resources";
+export * from "./sound";
+export * from "./xml"

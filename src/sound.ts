@@ -1,6 +1,5 @@
-import { resources } from "./resources";
+import { resourceRequested, resourceLoaded } from "./resources";
 
-export namespace sound {
     const audioContext: AudioContext = new AudioContext();
     audioContext.resume();
 
@@ -14,7 +13,7 @@ export namespace sound {
     // buffer the loaded data into an AudioBuffer
     export function loadSound(url: string, track = true): Sound {
         if (track) {
-            resources.resourceRequested(url);
+            resourceRequested(url);
         }
         const result: Sound = {};
 
@@ -24,7 +23,7 @@ export namespace sound {
 
         req.onload = () => {
             if (track) {
-                resources.resourceLoaded(url);
+                resourceLoaded(url);
             }
             const arrayBuffer = req.response;
             if (arrayBuffer) {
@@ -72,7 +71,7 @@ export namespace sound {
 
     // Try loading the buffer of data thats been loaded into
     // a AudioBuffer
-    function tryLoadSound(sound: sound.Sound): Promise<void> {
+    function tryLoadSound(sound: Sound): Promise<void> {
         return new Promise<void>((resolve) => {
             if (sound.buffer) {
                 resolve();
@@ -86,4 +85,3 @@ export namespace sound {
             }
         });
     }
-}

@@ -17,7 +17,8 @@ export namespace physics {
         bodyA: number;
         bodyB: number;
         distance: number;
-        tightness: number;
+        rigidity: number;
+        elasticity: number;
     }
 
     export interface Collision {
@@ -48,6 +49,7 @@ export namespace physics {
         faceNormals: Vector2[]
         vertices: Vector2[],
         pinned: boolean;
+        restingTime: number;
         data: any;
     }
 
@@ -63,10 +65,32 @@ export namespace physics {
         joints: Joint[];
     }
 
+    export function getWorldBounds(world: PhysicsWorld): { min: Vector2, max: Vector2 } {
+        if (!world.bodies) {
+            return {
+                min: newVec2(0,0),
+                max: newVec2(0,0)
+            };
+        }
+
+        const body: Body = world.bodies[0];
+        let min = newVec2(body.center.x - body.bounds, body.center.y - body.bounds);
+        let max = newVec2(body.center.x + body.bounds, body.center.y + body.bounds);
+
+        for (const body of world.bodies) {
+            min.x = Math.min(min.x, body.center.x - body.bounds);
+            min.y = Math.min(min.x, body.center.y - body.bounds);
+            max.x = Math.min(min.x, body.center.x + body.bounds);
+            max.y = Math.min(min.x, body.center.y + body.bounds);
+        }
+
+        return { min, max };
+    }
+
     export function createWorld(): PhysicsWorld {
         return {
             bodies: [],
-            gravity: Vec2(0, 100),
+            gravity: newVec2(0, 100),
             collisionInfo: EmptyCollision(),
             collisionInfoR1: EmptyCollision(),
             collisionInfoR2: EmptyCollision(),
@@ -77,12 +101,13 @@ export namespace physics {
         }
     };
 
-    export function createJoint(world: PhysicsWorld, bodyA: Body, bodyB: Body, tightness: number): void {
+    export function createJoint(world: PhysicsWorld, bodyA: Body, bodyB: Body, rigidity: number = 1, elasticity: number = 0): void {
         world.joints.push({
             bodyA: bodyA.id,
             bodyB: bodyB.id,
             distance: lengthVec2(subtractVec2(bodyA.center, bodyB.center)) + 0.5, // add a bit of space to prevent constant collision
-            tightness
+            rigidity,
+            elasticity
         });
     };
 
@@ -168,8 +193,12 @@ export namespace physics {
                     let vec = subtractVec2(other.center, body.center)
                     const distance = lengthVec2(vec);
                     const diff = distance - joint.distance;
-                    if (Math.abs(diff) > 0) {
-                        vec = scaleVec2(vec, (1 / distance) * diff * joint.tightness * (other.mass === 0 ? 1 : 0.5));
+                    if (diff != 0) {
+                        if (diff > 0) {
+                            vec = scaleVec2(vec, (1 / distance) * diff * (1 - joint.elasticity) * (other.mass === 0 ? 1 : 0.5));
+                        } else {
+                            vec = scaleVec2(vec, (1 / distance) * diff * joint.rigidity * (other.mass === 0 ? 1 : 0.5));
+                        }
                         moveShape(body, vec);
                         body.velocity = addVec2(body.velocity, scaleVec2(vec, fps));
                     }
@@ -225,20 +254,27 @@ export namespace physics {
         }
 
         for (const body of world.bodies) {
-            if (Math.abs(body.center.x - body.averageCenter.x) > 1) {
-                body.averageCenter.x = body.center.x;
-            }
-            if (Math.abs(body.center.y - body.averageCenter.y) > 1) {
-                body.averageCenter.y = body.center.y;
-            }
-            if (Math.abs(body.angle - body.averageAngle) >= 0.1) {
-                body.averageAngle = body.angle;
+            if (body.mass > 0) {
+                body.restingTime += 1 / fps;
+
+                if (Math.abs(body.center.x - body.averageCenter.x) > 1) {
+                    body.averageCenter.x = body.center.x;
+                    body.restingTime = 0;
+                }
+                if (Math.abs(body.center.y - body.averageCenter.y) > 1) {
+                    body.averageCenter.y = body.center.y;
+                    body.restingTime = 0;
+                }
+                if (Math.abs(body.angle - body.averageAngle) >= 0.1) {
+                    body.averageAngle = body.angle;
+                    body.restingTime = 0;
+                }
             }
         }
     };
 
     // 2D vector tools
-    export function Vec2(x: number, y: number): Vector2 {
+    export function newVec2(x: number, y: number): Vector2 {
         return ({ x, y });
     };
 
@@ -247,7 +283,7 @@ export namespace physics {
     }
 
     export function addVec2(v: Vector2, w: Vector2): Vector2 {
-        return Vec2(v.x + w.x, v.y + w.y);
+        return newVec2(v.x + w.x, v.y + w.y);
     }
 
     export function subtractVec2(v: Vector2, w: Vector2): Vector2 {
@@ -255,7 +291,7 @@ export namespace physics {
     }
 
     export function scaleVec2(v: Vector2, n: number): Vector2 {
-        return Vec2(v.x * n, v.y * n);
+        return newVec2(v.x * n, v.y * n);
     }
 
     export function dotProduct(v: Vector2, w: Vector2): number {
@@ -267,7 +303,7 @@ export namespace physics {
     }
 
     export function rotateVec2(v: Vector2, center: Vector2, angle: number, x = v.x - center.x, y = v.y - center.y): Vector2 {
-        return Vec2(x * Math.cos(angle) - y * Math.sin(angle) + center.x, x * Math.sin(angle) + y * Math.cos(angle) + center.y);
+        return newVec2(x * Math.cos(angle) - y * Math.sin(angle) + center.x, x * Math.sin(angle) + y * Math.cos(angle) + center.y);
     }
 
     export function normalize(v: Vector2): Vector2 {
@@ -278,9 +314,9 @@ export namespace physics {
     const EmptyCollision = (): Collision => {
         return {
             depth: 0,
-            normal: Vec2(0, 0),
-            start: Vec2(0, 0),
-            end: Vec2(0, 0),
+            normal: newVec2(0, 0),
+            start: newVec2(0, 0),
+            end: newVec2(0, 0),
         }
     };
 
@@ -306,12 +342,12 @@ export namespace physics {
             id: world.nextId++,
             type: type, // 0 circle / 1 rectangle
             center: center, // center
-            averageCenter: Vec2(center.x, center.y),
+            averageCenter: newVec2(center.x, center.y),
             friction: friction, // friction
             restitution: restitution, // restitution (bouncing)
             mass: mass ? 1 / mass : 0, // inverseMass (0 if immobile)
-            velocity: Vec2(0, 0), // velocity (speed)
-            acceleration: mass ? world.gravity : Vec2(0, 0), // acceleration
+            velocity: newVec2(0, 0), // velocity (speed)
+            acceleration: mass ? world.gravity : newVec2(0, 0), // acceleration
             angle: 0, // angle
             averageAngle: 0,
             angularVelocity: 0, // angle velocity
@@ -322,12 +358,13 @@ export namespace physics {
             inertia: calculateInertia(type, mass, bounds, width, height),
             faceNormals: [], // face normals array (rectangles)
             vertices: [ // Vertex: 0: TopLeft, 1: TopRight, 2: BottomRight, 3: BottomLeft (rectangles)
-                Vec2(center.x - width / 2, center.y - height / 2),
-                Vec2(center.x + width / 2, center.y - height / 2),
-                Vec2(center.x + width / 2, center.y + height / 2),
-                Vec2(center.x - width / 2, center.y + height / 2)
+                newVec2(center.x - width / 2, center.y - height / 2),
+                newVec2(center.x + width / 2, center.y - height / 2),
+                newVec2(center.x + width / 2, center.y + height / 2),
+                newVec2(center.x - width / 2, center.y + height / 2)
             ],
             pinned: false,
+            restingTime: 0,
             data: null
         };
 
@@ -589,8 +626,8 @@ export namespace physics {
             r2 = subtractVec2(p, s2.center),
 
             // newV = V + v cross R
-            v1 = addVec2(s1.velocity, Vec2(-1 * s1.angularVelocity * r1.y, s1.angularVelocity * r1.x)),
-            v2 = addVec2(s2.velocity, Vec2(-1 * s2.angularVelocity * r2.y, s2.angularVelocity * r2.x)),
+            v1 = addVec2(s1.velocity, newVec2(-1 * s1.angularVelocity * r1.y, s1.angularVelocity * r1.x)),
+            v2 = addVec2(s2.velocity, newVec2(-1 * s2.angularVelocity * r2.y, s2.angularVelocity * r2.x)),
             relativeVelocity = subtractVec2(v2, v1),
 
             // Relative velocity in normal direction
@@ -665,17 +702,17 @@ export namespace physics {
         // ====
         const world = createWorld();
 
-        let r = createRectangle(world, Vec2(500, 200), 400, 20, 0, 1, .5);
+        let r = createRectangle(world, newVec2(500, 200), 400, 20, 0, 1, .5);
         rotateShape(r, 2.8);
-        createRectangle(world, Vec2(200, 400), 400, 20, 0, 1, .5);
-        createRectangle(world, Vec2(100, 200), 200, 20, 0, 1, .5);
-        createRectangle(world, Vec2(10, 360), 20, 100, 0, 1, .5);
+        createRectangle(world, newVec2(200, 400), 400, 20, 0, 1, .5);
+        createRectangle(world, newVec2(100, 200), 200, 20, 0, 1, .5);
+        createRectangle(world, newVec2(10, 360), 20, 100, 0, 1, .5);
 
         for (let i = 0; i < count; i++) {
-            r = createCircle(world, Vec2(Math.random() * 800, Math.random() * 450 / 2), Math.random() * 20 + 10, Math.random() * 30, Math.random() / 2, Math.random() / 2);
+            r = createCircle(world, newVec2(Math.random() * 800, Math.random() * 450 / 2), Math.random() * 20 + 10, Math.random() * 30, Math.random() / 2, Math.random() / 2);
             rotateShape(r, Math.random() * 7);
             if (withBoxes) {
-                r = createRectangle(world, Vec2(Math.random() * 800, Math.random() * 450 / 2), Math.random() * 20 + 10, Math.random() * 20 + 10, Math.random() * 30, Math.random() / 2, Math.random() / 2);
+                r = createRectangle(world, newVec2(Math.random() * 800, Math.random() * 450 / 2), Math.random() * 20 + 10, Math.random() * 20 + 10, Math.random() * 30, Math.random() / 2, Math.random() / 2);
                 rotateShape(r, Math.random() * 7);
             }
         }

@@ -88,7 +88,7 @@ export namespace physics {
                     min.x = Math.min(min.x, vert.x);
                     min.y = Math.min(min.y, vert.y);
                     max.x = Math.max(max.x, vert.x);
-                    max.y = Math.max(max.y, vert.y;
+                    max.y = Math.max(max.y, vert.y);
                 }
             }
         }

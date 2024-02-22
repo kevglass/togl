@@ -48,6 +48,7 @@ export namespace physics {
         faceNormals: Vector2[]
         vertices: Vector2[],
         pinned: boolean;
+        data: any;
     }
 
     export interface PhysicsWorld {
@@ -327,6 +328,7 @@ export namespace physics {
                 Vec2(center.x - width / 2, center.y + height / 2)
             ],
             pinned: false,
+            data: null
         };
 
         // Prepare rectangle

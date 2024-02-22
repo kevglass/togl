@@ -79,9 +79,9 @@ export namespace physics {
 
         for (const body of world.bodies) {
             min.x = Math.min(min.x, body.center.x - body.bounds);
-            min.y = Math.min(min.x, body.center.y - body.bounds);
-            max.x = Math.min(min.x, body.center.x + body.bounds);
-            max.y = Math.min(min.x, body.center.y + body.bounds);
+            min.y = Math.min(min.y, body.center.y - body.bounds);
+            max.x = Math.max(max.x, body.center.x + body.bounds);
+            max.y = Math.max(max.y, body.center.y + body.bounds);
         }
 
         return { min, max };

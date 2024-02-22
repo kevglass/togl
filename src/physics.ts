@@ -278,6 +278,10 @@ export namespace physics {
                     body.averageAngle = body.angle;
                     body.restingTime = 0;
                 }
+            } else {
+                body.averageCenter.x = body.center.x;
+                body.averageCenter.y = body.center.y;
+                body.averageAngle = body.angle;
             }
         }
     };

@@ -68,8 +68,8 @@ export namespace physics {
     export function getWorldBounds(world: PhysicsWorld): { min: Vector2, max: Vector2 } {
         if (!world.bodies) {
             return {
-                min: newVec2(0,0),
-                max: newVec2(0,0)
+                min: newVec2(0, 0),
+                max: newVec2(0, 0)
             };
         }
 
@@ -78,10 +78,19 @@ export namespace physics {
         let max = newVec2(body.center.x + body.bounds, body.center.y + body.bounds);
 
         for (const body of world.bodies) {
-            min.x = Math.min(min.x, body.center.x - body.bounds);
-            min.y = Math.min(min.y, body.center.y - body.bounds);
-            max.x = Math.max(max.x, body.center.x + body.bounds);
-            max.y = Math.max(max.y, body.center.y + body.bounds);
+            if (body.type === ShapeType.CIRCLE) {
+                min.x = Math.min(min.x, body.center.x - body.bounds);
+                min.y = Math.min(min.y, body.center.y - body.bounds);
+                max.x = Math.max(max.x, body.center.x + body.bounds);
+                max.y = Math.max(max.y, body.center.y + body.bounds);
+            } else if (body.type === ShapeType.RECTANGLE) {
+                for (const vert of body.vertices) {
+                    min.x = Math.min(min.x, vert.x);
+                    min.y = Math.min(min.y, vert.y);
+                    max.x = Math.max(max.x, vert.x);
+                    max.y = Math.max(max.y, vert.y;
+                }
+            }
         }
 
         return { min, max };

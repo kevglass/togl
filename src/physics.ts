@@ -43,6 +43,7 @@ export namespace physics {
         angularVelocity: number,
         angularAcceleration: number,
         bounds: number,
+        boundingBox: Vector2,
         width: number,
         height: number,
         inertia: number,
@@ -63,6 +64,7 @@ export namespace physics {
         damp: number;
         nextId: number;
         joints: Joint[];
+        collisionTestCount: number
     }
 
     export function getWorldBounds(world: PhysicsWorld): { min: Vector2, max: Vector2 } {
@@ -106,7 +108,8 @@ export namespace physics {
             angularDamp: 0.98,
             damp: 0.98,
             nextId: 1,
-            joints: []
+            joints: [],
+            collisionTestCount: 0
         }
     };
 
@@ -160,6 +163,7 @@ export namespace physics {
             for (let i = 4; i--;) {
                 shape.vertices[i] = addVec2(shape.vertices[i], v);
             }
+            calcBoundingBox(shape);
         }
     };
 
@@ -174,6 +178,7 @@ export namespace physics {
                 shape.vertices[i] = rotateVec2(shape.vertices[i], shape.center, angle);
             }
             computeRectNormals(shape);
+            calcBoundingBox(shape);
         }
     };
 
@@ -233,8 +238,8 @@ export namespace physics {
                     }
                     // Test bounds
                     if (boundTest(bodies[i], bodies[j])) {
-
                         // Test collision
+                        world.collisionTestCount++;
                         if (testCollision(world, bodies[i], bodies[j], world.collisionInfo)) {
 
                             // Make sure the normal is always from object[i] to object[j]
@@ -376,10 +381,13 @@ export namespace physics {
                 newVec2(center.x + width / 2, center.y + height / 2),
                 newVec2(center.x - width / 2, center.y + height / 2)
             ],
+            boundingBox: newVec2(0,0),
             pinned: false,
             restingTime: 0,
             data: null
         };
+
+        calcBoundingBox(shape);
 
         // Prepare rectangle
         if (type /* == 1 */) {
@@ -390,8 +398,30 @@ export namespace physics {
     }
 
     // Test if two shapes have intersecting bounding circles
+    // TODO Need to optimize this for rectangles 
     function boundTest(s1: Body, s2: Body) {
-        return lengthVec2(subtractVec2(s2.center, s1.center)) <= s1.bounds + s2.bounds;
+        const coincideX = Math.abs(s1.center.x - s2.center.x) < s1.boundingBox.x + s2.boundingBox.x;
+        const coincideY = Math.abs(s1.center.y - s2.center.y) < s1.boundingBox.y + s2.boundingBox.y;
+
+        return coincideX && coincideY;
+
+        // old bounds check
+        // return lengthVec2(subtractVec2(s2.center, s1.center)) <= s1.bounds + s2.bounds;
+    }
+
+    function calcBoundingBox(body: Body) {
+        if (body.type === ShapeType.CIRCLE) {
+            body.boundingBox.x = body.bounds;
+            body.boundingBox.y = body.bounds;
+        } else {
+            body.boundingBox.x = 0;
+            body.boundingBox.y = 0;
+            
+            for (const v of body.vertices) {
+                body.boundingBox.x = Math.max(body.boundingBox.x, Math.abs(body.center.x - v.x));
+                body.boundingBox.y = Math.max(body.boundingBox.y, Math.abs(body.center.y - v.y));
+            }
+        }
     }
 
     // Compute face normals (for rectangles)

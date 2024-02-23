@@ -98,10 +98,10 @@ export namespace physics {
         return { min, max };
     }
 
-    export function createWorld(): PhysicsWorld {
+    export function createWorld(gravity?: Vector2): PhysicsWorld {
         return {
             bodies: [],
-            gravity: newVec2(0, 100),
+            gravity: gravity ?? newVec2(0, 100),
             collisionInfo: EmptyCollision(),
             collisionInfoR1: EmptyCollision(),
             collisionInfoR2: EmptyCollision(),

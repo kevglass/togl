@@ -30,6 +30,8 @@ const shortsPerImageSize = 2
 const shortsPerImageTexPos = 4
 const bytesPerImageRgba = 4
 
+let textureSizeOverride = 0;
+
 const bytesPerImage = shortsPerImagePosition * 2 +
     shortsPerImageSize * 2 +
     shortsPerImageTexPos * 2 +
@@ -58,6 +60,7 @@ interface WebGLBitmap extends graphics.GameImage {
     width: number;
     height: number;
     image?: HTMLImageElement;
+    smooth?: boolean;
 }
 
 interface RenderState {
@@ -70,9 +73,9 @@ interface RenderState {
 let pixelatedRendering = false;
 
 export const webglRenderer: graphics.Renderer = {
-    init(c: HTMLCanvasElement, pixelatedRenderingEnabled: boolean):graphics.Renderer {
+    init(c: HTMLCanvasElement, pixelatedRenderingEnabled: boolean, textureSize: number):graphics.Renderer {
         pixelatedRendering = pixelatedRenderingEnabled;
-
+        textureSizeOverride = textureSize;
         canvas = c;
         transformCanvas = document.createElement("canvas");
         transformCtx = transformCanvas.getContext("2d")!;
@@ -90,7 +93,7 @@ export const webglRenderer: graphics.Renderer = {
         initGlResources();
         return webglRenderer;
     },
-    loadImage(url: string, track: boolean, id?: string): graphics.GameImage {
+    loadImage(url: string, track: boolean, id?: string, smooth?: boolean): graphics.GameImage {
         if (track) {
             resources.resourceRequested(url);
         }
@@ -101,7 +104,8 @@ export const webglRenderer: graphics.Renderer = {
             height: 0,
             texIndex: 0,
             texX: 0,
-            texY: 0
+            texY: 0,
+            smooth
         };
 
         bitmaps.push(bitmap);
@@ -702,34 +706,54 @@ function newResourceLoaded(): void {
 }
 
 function _initResourceOnLoaded(): void {
-    const textureSize = Math.min(gl.getParameter(gl.MAX_TEXTURE_SIZE), 4096 * 2);
+    const textureSize = textureSizeOverride > 0 ? textureSizeOverride :  Math.min(gl.getParameter(gl.MAX_TEXTURE_SIZE), 4096 * 2);
 
     let list = [...bitmaps];
     list.sort((a, b) => a.height > b.height ? -1 : 1);
 
-    const placed: WebGLBitmap[] = [];
-    placed.push({ id: "fake", texX: 0, texY: 0, width: 1, height: 1, texIndex: -1 })
-    let records = list.map(image => { return { image: image, w: image.width + 2, h: image.height + 2 } });
+    let records = list.map(image => { return { image: image, w: image.width + 2, h: image.height + 2, smooth: image.smooth } });
     const tooBig = records.filter(r => r.w > textureSize || r.h > textureSize);
     tooBig.forEach(r => console.log(r.image.id + " is too big for small textures: " + r.w + "x" + r.h));
 
     records = records.filter(r => r.w <= textureSize && r.h <= textureSize);
 
+    const nonSmooth = records.filter(r => !r.smooth);
+    const smooth = records.filter(r => r.smooth);
+    
     let base = 0;
-    let step = 1;
     let textureCount = 0;
-    for (let i = 0; i < records.length; i += step) {
-        let { w, h, fill } = potpack(records.slice(base, i));
+
+    for (let i = 0; i < nonSmooth.filter(r => !r.smooth).length; i++) {
+        let { w, h, fill } = potpack(nonSmooth.slice(base, i));
         if (w > textureSize || h > textureSize) {
-            let { w, h, fill } = potpack(records.slice(base, i - 1));
-            records.slice(base, i - 1).forEach(record => record.image.texIndex = textureCount);
+            let { w, h, fill } = potpack(nonSmooth.slice(base, i - 1));
+            nonSmooth.slice(base, i - 1).forEach(record => record.image.texIndex = textureCount);
             base = i - 1;
             textureCount++;
         }
     }
-    let { w, h, fill } = potpack(records.slice(base, records.length));
-    records.slice(base, records.length).forEach(record => record.image.texIndex = textureCount);
+    let { w, h, fill } = potpack(nonSmooth.slice(base, nonSmooth.length));
+    nonSmooth.slice(base, nonSmooth.length).forEach(record => record.image.texIndex = textureCount);
     textureCount++;
+
+    const smoothedTextures: number[] = [];
+    if (smooth.length > 0) {
+        let base = 0;
+        for (let i = 0; i < smooth.length; i ++) {
+            let { w, h, fill } = potpack(smooth.slice(base, i));
+            if (w > textureSize || h > textureSize) {
+                let { w, h, fill } = potpack(smooth.slice(base, i - 1));
+                smooth.slice(base, i - 1).forEach(record => record.image.texIndex = textureCount);
+                base = i - 1;
+                smoothedTextures.push(textureCount);
+                textureCount++;
+            }
+        }
+        let { w, h, fill } = potpack(smooth.slice(base, smooth.length));
+        smooth.slice(base, smooth.length).forEach(record => record.image.texIndex = textureCount);
+        smoothedTextures.push(textureCount);
+        textureCount++;
+    }
 
     console.log("[WEBGL] Reloading textures (packed into " + textureCount + " textures - size " + textureSize + " - max: " + getMaxTextureSize() + ")");
     for (const record of records) {
@@ -767,7 +791,7 @@ function _initResourceOnLoaded(): void {
             }
 
             gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-            if (pixelatedRendering) {
+            if (pixelatedRendering && !smoothedTextures.includes(i)) {
                 gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
             } else {
                 gl.generateMipmap(gl.TEXTURE_2D);

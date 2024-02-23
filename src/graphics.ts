@@ -162,9 +162,9 @@ export namespace graphics {
     }
 
     export interface Renderer {
-        init(canvas: HTMLCanvasElement, pixelatedRenderingEnabled: boolean): Renderer;
+        init(canvas: HTMLCanvasElement, pixelatedRenderingEnabled: boolean, textureSize?: number): Renderer;
 
-        loadImage(url: string, track: boolean, id?: string): GameImage
+        loadImage(url: string, track: boolean, id?: string, smooth?: boolean): GameImage
 
         // load an image and store it with tileset information
         loadTileSet(url: string, tw: number, th: number, id?: string): TileSet;
@@ -228,14 +228,14 @@ export namespace graphics {
     let frameCount: number = 0;
     let fps: number = 0;
 
-    export function init(rendererType: RendererType, pixelatedRenderingEnabled = false): void {
+    export function init(rendererType: RendererType, pixelatedRenderingEnabled = false, textureSize: number = 0): void {
         console.log("TOGL Renderer: " + rendererType + " (pixelated = " + pixelatedRenderingEnabled + ")");
 
         if (rendererType === RendererType.CANVAS) {
             currentRenderer = canvasRenderer.init(canvas, pixelatedRenderingEnabled);
         }
         if (rendererType === RendererType.WEBGL) {
-            currentRenderer = webglRenderer.init(canvas, pixelatedRenderingEnabled);
+            currentRenderer = webglRenderer.init(canvas, pixelatedRenderingEnabled, textureSize);
         }
     }
 
@@ -265,8 +265,8 @@ export namespace graphics {
         return canvas.height;
     }
 
-    export function loadImage(url: string, track = true, id?: string): GameImage {
-        return currentRenderer.loadImage(url, track);
+    export function loadImage(url: string, track = true, id?: string, smooth?: boolean): GameImage {
+        return currentRenderer.loadImage(url, track, id, smooth);
     }
 
     // load an image and store it with tileset information

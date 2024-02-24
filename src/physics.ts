@@ -291,6 +291,10 @@ export namespace physics {
         }
     };
 
+    export function atRest(world: PhysicsWorld, forMs: number = 2000): boolean {
+        return !world.bodies.find(b => b.restingTime < forMs);
+    }
+    
     // 2D vector tools
     export function newVec2(x: number, y: number): Vector2 {
         return ({ x, y });
@@ -383,7 +387,7 @@ export namespace physics {
             ],
             boundingBox: newVec2(0,0),
             pinned: false,
-            restingTime: 0,
+            restingTime: mass = 0 ? Number.MAX_SAFE_INTEGER : 0,
             data: null
         };
 

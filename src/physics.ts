@@ -64,7 +64,6 @@ export namespace physics {
         damp: number;
         nextId: number;
         joints: Joint[];
-        collisionTestCount: number
     }
 
     export function allBodies(world: PhysicsWorld): Body[] {
@@ -112,8 +111,7 @@ export namespace physics {
             angularDamp: 0.98,
             damp: 0.98,
             nextId: 1,
-            joints: [],
-            collisionTestCount: 0
+            joints: []
         }
     };
 
@@ -230,7 +228,6 @@ export namespace physics {
             }
         }
 
-        world.collisionTestCount = 0;
         // Compute collisions and iterate to resolve
         for (let k = 9; k--;) {
             let collision = false;
@@ -261,7 +258,6 @@ export namespace physics {
 
                             // Resolve collision
                             if (resolveCollision(world, bodyI, bodyJ, collisionInfo)) {
-                                world.collisionTestCount++;
                                 collision = true;
                             }
                         }

@@ -51,15 +51,15 @@ export namespace physics {
         vertices: Vector2[],
         pinned: boolean;
         restingTime: number;
+        static: boolean;
         data: any;
     }
 
     export interface PhysicsWorld {
-        bodies: Body[];
+        dynamicBodies: Body[];
+
+        staticBodies: Body[];
         gravity: Vector2;
-        collisionInfo: Collision;
-        collisionInfoR1: Collision;
-        collisionInfoR2: Collision;
         angularDamp: number;
         damp: number;
         nextId: number;
@@ -67,19 +67,25 @@ export namespace physics {
         collisionTestCount: number
     }
 
+    export function allBodies(world: PhysicsWorld): Body[] {
+        return [...world.dynamicBodies, ...world.staticBodies];
+    }
+
     export function getWorldBounds(world: PhysicsWorld): { min: Vector2, max: Vector2 } {
-        if (!world.bodies) {
+        const bodies = allBodies(world);
+
+        if (bodies.length === 0) {
             return {
                 min: newVec2(0, 0),
                 max: newVec2(0, 0)
             };
         }
 
-        const body: Body = world.bodies[0];
+        const body: Body = bodies[0];
         let min = newVec2(body.center.x - body.bounds, body.center.y - body.bounds);
         let max = newVec2(body.center.x + body.bounds, body.center.y + body.bounds);
 
-        for (const body of world.bodies) {
+        for (const body of bodies) {
             if (body.type === ShapeType.CIRCLE) {
                 min.x = Math.min(min.x, body.center.x - body.bounds);
                 min.y = Math.min(min.y, body.center.y - body.bounds);
@@ -100,11 +106,9 @@ export namespace physics {
 
     export function createWorld(gravity?: Vector2): PhysicsWorld {
         return {
-            bodies: [],
+            staticBodies: [],
+            dynamicBodies: [],
             gravity: gravity ?? newVec2(0, 100),
-            collisionInfo: EmptyCollision(),
-            collisionInfoR1: EmptyCollision(),
-            collisionInfoR2: EmptyCollision(),
             angularDamp: 0.98,
             damp: 0.98,
             nextId: 1,
@@ -123,10 +127,16 @@ export namespace physics {
         });
     };
 
-    export function allowPinnedRotation(body: Body, mass: number): void {
-        body.mass = mass;
-        body.inertia = calculateInertia(body.type, body.mass, body.bounds, body.width, body.height)
-        body.pinned = true;
+    export function allowPinnedRotation(world: PhysicsWorld, id: number, mass: number): void {
+        const body = world.staticBodies.find(b => b.id === id);
+        if (body) {
+            body.mass = mass;
+            body.inertia = calculateInertia(body.type, body.mass, body.bounds, body.width, body.height)
+            body.pinned = true;
+            body.static = false;
+            world.staticBodies.splice(world.staticBodies.indexOf(body), 1);
+            world.dynamicBodies.push(body);
+        }
     };
 
     // New circle
@@ -155,6 +165,10 @@ export namespace physics {
         if (shape.pinned) {
             return;
         }
+        if (shape.mass === 0) {
+            return;
+        }
+
         // Center
         shape.center = addVec2(shape.center, v);
 
@@ -183,26 +197,22 @@ export namespace physics {
     };
 
     export function worldStep(fps: number, world: PhysicsWorld) {
-        for (const body of world.bodies) {
+        const all = allBodies(world);
+
+        for (const body of world.dynamicBodies) {
             // Update position/rotation
-            if (body.mass !== 0) {
-                body.velocity = addVec2(body.velocity, scaleVec2(body.acceleration, 1 / fps));
-                moveShape(body, scaleVec2(body.velocity, 1 / fps));
-                body.angularVelocity += body.angularAcceleration * 1 / fps;
-                rotateShape(body, body.angularVelocity * 1 / fps);
-            }
+            body.velocity = addVec2(body.velocity, scaleVec2(body.acceleration, 1 / fps));
+            moveShape(body, scaleVec2(body.velocity, 1 / fps));
+            body.angularVelocity += body.angularAcceleration * 1 / fps;
+            rotateShape(body, body.angularVelocity * 1 / fps);
         }
 
         // apply velocity to try and maintain joints
-        for (const body of world.bodies) {
-            if (body.mass === 0) {
-                continue;
-            }
-
+        for (const body of world.dynamicBodies) {
             const joints = world.joints.filter(j => j.bodyA === body.id || j.bodyB === body.id);
             for (const joint of joints) {
                 const otherId = joint.bodyA === body.id ? joint.bodyB : joint.bodyA;
-                const other = world.bodies.find(b => b.id === otherId);
+                const other = all.find(b => b.id === otherId);
                 if (other) {
                     let vec = subtractVec2(other.center, body.center)
                     const distance = lengthVec2(vec);
@@ -220,40 +230,38 @@ export namespace physics {
             }
         }
 
-
-        const bodies = world.bodies;
-
+        world.collisionTestCount = 0;
         // Compute collisions and iterate to resolve
         for (let k = 9; k--;) {
             let collision = false;
 
-            for (let i = bodies.length; i--;) {
-                for (let j = bodies.length; j-- > i;) {
+            for (let i = world.dynamicBodies.length; i--;) {
+                for (let j = all.length; j-- > i;) {
                     if (i === j) {
                         continue;
                     }
-                    // don't collide two static objects
-                    if ((bodies[i].mass === 0) && (bodies[j].mass === 0)) {
-                        continue;
-                    }
                     // Test bounds
-                    if (boundTest(bodies[i], bodies[j])) {
+                    const bodyI = world.dynamicBodies[i];
+                    const bodyJ = all[j];
+
+                    if (boundTest(bodyI, bodyJ)) {
                         // Test collision
-                        world.collisionTestCount++;
-                        if (testCollision(world, bodies[i], bodies[j], world.collisionInfo)) {
+                        let collisionInfo = EmptyCollision();
+                        if (testCollision(world, bodyI, bodyJ, collisionInfo)) {
 
                             // Make sure the normal is always from object[i] to object[j]
-                            if (dotProduct(world.collisionInfo.normal, subtractVec2(bodies[j].center, bodies[i].center)) < 0) {
-                                world.collisionInfo = {
-                                    depth: world.collisionInfo.depth,
-                                    normal: scaleVec2(world.collisionInfo.normal, -1),
-                                    start: world.collisionInfo.end,
-                                    end: world.collisionInfo.start
+                            if (dotProduct(collisionInfo.normal, subtractVec2(bodyJ.center, bodyI.center)) < 0) {
+                                collisionInfo = {
+                                    depth: collisionInfo.depth,
+                                    normal: scaleVec2(collisionInfo.normal, -1),
+                                    start: collisionInfo.end,
+                                    end: collisionInfo.start
                                 };
                             }
 
                             // Resolve collision
-                            if (resolveCollision(world, bodies[i], bodies[j], world.collisionInfo)) {
+                            if (resolveCollision(world, bodyI, bodyJ, collisionInfo)) {
+                                world.collisionTestCount++;
                                 collision = true;
                             }
                         }
@@ -267,7 +275,7 @@ export namespace physics {
             }
         }
 
-        for (const body of world.bodies) {
+        for (const body of all) {
             if (body.mass > 0) {
                 body.restingTime += 1 / fps;
 
@@ -292,9 +300,9 @@ export namespace physics {
     };
 
     export function atRest(world: PhysicsWorld, forMs: number = 2000): boolean {
-        return !world.bodies.find(b => b.restingTime < forMs);
+        return !world.dynamicBodies.find(b => b.restingTime < forMs);
     }
-    
+
     // 2D vector tools
     export function newVec2(x: number, y: number): Vector2 {
         return ({ x, y });
@@ -360,7 +368,7 @@ export namespace physics {
 
     // New shape
     function createRigidShape(world: PhysicsWorld, center: Vector2, mass: number, friction: number, restitution: number, type: number, bounds: number, width = 0, height = 0): Body {
-        const shape: Body = {
+        const body: Body = {
             id: world.nextId++,
             type: type, // 0 circle / 1 rectangle
             center: center, // center
@@ -385,20 +393,23 @@ export namespace physics {
                 newVec2(center.x + width / 2, center.y + height / 2),
                 newVec2(center.x - width / 2, center.y + height / 2)
             ],
-            boundingBox: newVec2(0,0),
+            boundingBox: newVec2(0, 0),
             pinned: false,
-            restingTime: mass = 0 ? Number.MAX_SAFE_INTEGER : 0,
-            data: null
+            restingTime: mass == 0 ? Number.MAX_SAFE_INTEGER : 0,
+            data: null,
+            static: mass === 0
         };
 
-        calcBoundingBox(shape);
+        calcBoundingBox(body);
 
         // Prepare rectangle
         if (type /* == 1 */) {
-            computeRectNormals(shape);
+            computeRectNormals(body);
         }
-        world.bodies.push(shape);
-        return shape;
+
+        (body.static ? world.staticBodies : world.dynamicBodies).push(body);
+
+        return body;
     }
 
     // Test if two shapes have intersecting bounding circles
@@ -420,7 +431,7 @@ export namespace physics {
         } else {
             body.boundingBox.x = 0;
             body.boundingBox.y = 0;
-            
+
             for (const v of body.vertices) {
                 body.boundingBox.x = Math.max(body.boundingBox.x, Math.abs(body.center.x - v.x));
                 body.boundingBox.y = Math.max(body.boundingBox.y, Math.abs(body.center.y - v.y));
@@ -526,19 +537,21 @@ export namespace physics {
                 status2 = false;
 
             // find Axis of Separation for both rectangles
-            status1 = findAxisLeastPenetration(c1, c2, world.collisionInfoR1);
+            const collisionInfoR1 = EmptyCollision();
+            status1 = findAxisLeastPenetration(c1, c2, collisionInfoR1);
             if (status1) {
-                status2 = findAxisLeastPenetration(c2, c1, world.collisionInfoR2);
+                const collisionInfoR2 = EmptyCollision();
+                status2 = findAxisLeastPenetration(c2, c1, collisionInfoR2);
                 if (status2) {
 
                     // if both of rectangles are overlapping, choose the shorter normal as the normal     
-                    if (world.collisionInfoR1.depth < world.collisionInfoR2.depth) {
-                        setCollisionInfo(collisionInfo, world.collisionInfoR1.depth, world.collisionInfoR1.normal,
-                            subtractVec2(world.collisionInfoR1.start, scaleVec2(world.collisionInfoR1.normal, world.collisionInfoR1.depth)));
+                    if (collisionInfoR1.depth < collisionInfoR2.depth) {
+                        setCollisionInfo(collisionInfo, collisionInfoR1.depth, collisionInfoR1.normal,
+                            subtractVec2(collisionInfoR1.start, scaleVec2(collisionInfoR1.normal, collisionInfoR1.depth)));
                         return true;
                     }
                     else {
-                        setCollisionInfo(collisionInfo, world.collisionInfoR2.depth, scaleVec2(world.collisionInfoR2.normal, -1), world.collisionInfoR2.start);
+                        setCollisionInfo(collisionInfo, collisionInfoR2.depth, scaleVec2(collisionInfoR2.normal, -1), collisionInfoR2.start);
                         return true;
                     }
                 }
@@ -655,7 +668,7 @@ export namespace physics {
             correctionAmount = scaleVec2(collisionInfo.normal, num),
             n = collisionInfo.normal;
 
-        if (lengthVec2(correctionAmount) === 0) {
+        if (correctionAmount.x === 0 && correctionAmount.y === 0) {
             return false;
         }
 
@@ -703,10 +716,15 @@ export namespace physics {
 
         // impulse = F dt = m * ?v
         // ?v = impulse / m
-        s1.velocity = subtractVec2(s1.velocity, scaleVec2(impulse, s1.mass));
-        s2.velocity = addVec2(s2.velocity, scaleVec2(impulse, s2.mass));
-        s1.angularVelocity -= R1crossN * jN * s1.inertia;
-        s2.angularVelocity += R2crossN * jN * s2.inertia;
+        if (!s1.static) {
+            s1.velocity = subtractVec2(s1.velocity, scaleVec2(impulse, s1.mass));
+            s1.angularVelocity -= R1crossN * jN * s1.inertia;
+        }
+        if (!s2.static) {
+            s2.velocity = addVec2(s2.velocity, scaleVec2(impulse, s2.mass));
+            s2.angularVelocity += R2crossN * jN * s2.inertia;
+        }
+
         const
             tangent = scaleVec2(normalize(subtractVec2(relativeVelocity, scaleVec2(n, dotProduct(relativeVelocity, n)))), -1),
             R1crossT = crossProduct(r1, tangent),
@@ -721,26 +739,33 @@ export namespace physics {
 
         // impulse is from s1 to s2 (in opposite direction of velocity)
         impulse = scaleVec2(tangent, jT);
-        s1.velocity = subtractVec2(s1.velocity, scaleVec2(impulse, s1.mass));
-        s2.velocity = addVec2(s2.velocity, scaleVec2(impulse, s2.mass));
-        s1.angularVelocity -= R1crossT * jT * s1.inertia;
-        s2.angularVelocity += R2crossT * jT * s2.inertia;
 
-        s1.velocity.x *= world.damp;
-        s1.velocity.y *= world.damp;
-        s2.velocity.x *= world.damp;
-        s2.velocity.y *= world.damp;
-        s1.angularVelocity *= world.angularDamp;
-        s2.angularVelocity *= world.angularDamp;
+        if (!s1.static) {
+            s1.velocity = subtractVec2(s1.velocity, scaleVec2(impulse, s1.mass));
+            s1.angularVelocity -= R1crossT * jT * s1.inertia;
+            s1.velocity.x *= world.damp;
+            s1.velocity.y *= world.damp;
+            s1.angularVelocity *= world.angularDamp;
 
-        if (s1.pinned) {
-            s1.velocity.x = 0;
-            s1.velocity.y = 0;
+            if (s1.pinned) {
+                s1.velocity.x = 0;
+                s1.velocity.y = 0;
+            }
         }
-        if (s2.pinned) {
-            s2.velocity.x = 0;
-            s2.velocity.y = 0;
+
+        if (!s2.static) {
+            s2.velocity = addVec2(s2.velocity, scaleVec2(impulse, s2.mass));
+            s2.angularVelocity += R2crossT * jT * s2.inertia;
+            s2.velocity.x *= world.damp;
+            s2.velocity.y *= world.damp;
+            s2.angularVelocity *= world.angularDamp;
+
+            if (s2.pinned) {
+                s2.velocity.x = 0;
+                s2.velocity.y = 0;
+            }
         }
+
         return true;
     }
 

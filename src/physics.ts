@@ -3,73 +3,151 @@
 // ===============
 // Port of https://github.com/xem/mini2Dphysics/tree/gh-pages
 
+/**
+ * A stateless functional physics engine based off the fantastic work here:
+ * 
+ * https://github.com/xem/mini2Dphysics/tree/gh-pages
+ */
 export namespace physics {
+    /** The shape of a body */
     export enum ShapeType {
+        /** A circular shape */
         CIRCLE = 0,
+        /** A rectangle shape */
         RECTANGLE = 1,
     }
+
+    /**
+     * Two dimension vector
+     */
     export interface Vector2 {
+        /** The x coordinate of the vector */
         x: number;
+        /** The y coordinate of the vector */
         y: number;
     }
 
+    /**
+     * A joint between two bodies that should be enforced
+     */
     export interface Joint {
+        /** The ID of the first body connected to the joint */
         bodyA: number;
+        /** The ID of the second body connected to the joint */
         bodyB: number;
+        /** The distance the joint is trying to maintain  */
         distance: number;
+        /** Factor of how much the joint will compress */
         rigidity: number;
+        /** Factor of how much the joint will stretch */
         elasticity: number;
     }
 
+    /**
+     * A collision that has occurred in the world
+     */
     export interface Collision {
+        /** The depth of the collision */
         depth: number;
+        /** The normal of the collision point between the two shapes */
         normal: Vector2;
+        /** The starting point of the collision */
         start: Vector2;
+        /** The ending point of the collision */
         end: Vector2;
     }
 
+    /**
+     * A rigid body in the physical world
+     */
     export interface Body {
+        /** The unique ID of this body */
         id: number;
-        type: number,
+        /** The shape type of the body */
+        type: ShapeType,
+        /** The center of the body */
         center: Vector2,
+        /** The center of the body on average - this keeps things stable */
         averageCenter: Vector2;
+        /** The friction to apply for this body in a collision */
         friction: number,
+        /** The restitution to apply for this body in a collision */
         restitution: number,
+        /** The mass of the body - zero is used for static bodies */
         mass: number,
+        /** The current velocity of the body */
         velocity: Vector2,
+        /** The current acceleration of the body */
         acceleration: Vector2,
+        /** The current angle of rotation of the body */
         angle: number,
+        /** The average angle of rotation of the bod - this keeps things stable */
         averageAngle: number;
+        /** The current angular velocity of the body */
         angularVelocity: number,
+        /** The current angular acceleration of the body */
         angularAcceleration: number,
+        /** The radius of a bounding circle around the body */
         bounds: number,
+        /** The boding box around the body - used for efficient bounds tests */
         boundingBox: Vector2,
+        /** The width of the body if its a rectangle */
         width: number,
+        /** The height of the body if its a rectangle */
         height: number,
+        /** The current inertia of the body */
         inertia: number,
+        /** The normals of the faces of the rectangle */
         faceNormals: Vector2[]
+        /** The vertices of the corners of the rectangle */
         vertices: Vector2[],
+        /** True if this body is pinned in position - still allowed rotation */
         pinned: boolean;
+        /** The amount of time this body has been resting for */
         restingTime: number;
+        /** True if this body is static - i.e. it doesn't moved or rotate */
         static: boolean;
+        /** User data associated with the body  */
         data: any;
     }
 
+    /**
+     * The world in which the physics engine runs
+     */
     export interface World {
+        /** The list of bodies that can move or rotate */
         dynamicBodies: Body[];
 
+        /** The list of bodies that don't move or rotate */
         staticBodies: Body[];
+        /** The gravity to apply to all dynamic bodies */
         gravity: Vector2;
+        /** The amount of damping to apply on angular velocity - 1 = none */
         angularDamp: number;
+        /** The amount of damping to apply on velocity - 1 = none */
         damp: number;
+        /** The next ID to assign to a body */
         nextId: number;
+        /** The list of joints to be enforced */
         joints: Joint[];
     }
 
+    /**
+     * Get a list of all bodies in the system
+     * 
+     * @param world The world containing the bodies
+     * @returns The list of bodies in the world
+     */
     export function allBodies(world: World): Body[] {
         return [...world.dynamicBodies, ...world.staticBodies];
     }
 
+    /**
+     * Get the bounds of the world
+     * 
+     * @param world The world to calculate the bounds of
+     * @returns The minimum and maximum coordinates of any body in the world
+     */
     export function getWorldBounds(world: World): { min: Vector2, max: Vector2 } {
         const bodies = allBodies(world);
 
@@ -103,6 +181,12 @@ export namespace physics {
         return { min, max };
     }
 
+    /**
+     * Create a new world for bodies to live in
+     * 
+     * @param gravity The gravity to apply to bodies in this system
+     * @returns The newly created world
+     */
     export function createWorld(gravity?: Vector2): World {
         return {
             staticBodies: [],
@@ -115,6 +199,15 @@ export namespace physics {
         }
     };
 
+    /**
+     * Create a joint between two bodies in the world
+     * 
+     * @param world The world in which to create the joint
+     * @param bodyA The first body to connect to the joint
+     * @param bodyB The second body to connect to the joint
+     * @param rigidity The amount the joint will compress 
+     * @param elasticity The amount the joint will stretch
+     */
     export function createJoint(world: World, bodyA: Body, bodyB: Body, rigidity: number = 1, elasticity: number = 0): void {
         world.joints.push({
             bodyA: bodyA.id,
@@ -125,6 +218,13 @@ export namespace physics {
         });
     };
 
+    /**
+     * Indicate that a body should rotate but not move, i.e. pinning it
+     * 
+     * @param world The world in which the body exists
+     * @param id The ID of the body to adjust
+     * @param mass The mass to give the body
+     */
     export function allowPinnedRotation(world: World, id: number, mass: number): void {
         const body = world.staticBodies.find(b => b.id === id);
         if (body) {
@@ -137,7 +237,17 @@ export namespace physics {
         }
     };
 
-    // New circle
+    /**
+     * Create a body with a circular shape
+     * 
+     * @param world The world in which to create the body
+     * @param center The center of the body
+     * @param radius The radius of the circle shape to attach
+     * @param mass The mass to give the newly created body
+     * @param friction The friction to apply during collisions with the new body
+     * @param restitution The friction to apply during collisions with the new body
+     * @returns The newly created body
+     */
     export function createCircle(world: World, center: Vector2, radius: number, mass: number, friction: number, restitution: number): Body {
         // the original code only works well with whole number static objects
         center.x = Math.floor(center.x);
@@ -147,7 +257,18 @@ export namespace physics {
         return createRigidBody(world, center, mass, friction, restitution, 0, radius);
     };
 
-    // New rectangle
+    /**
+     * Create a body with a rectangular shape
+     * 
+     * @param world The world in which to create the body
+     * @param center The center of the body
+     * @param width The height of the rectangle shape to attach
+     * @param height The width of the rectangle shape to attach
+     * @param mass The mass to give the newly created body
+     * @param friction The friction to apply during collisions with the new body
+     * @param restitution The friction to apply during collisions with the new body
+     * @returns The newly created body
+     */
     export function createRectangle(world: World, center: Vector2, width: number, height: number, mass: number, friction: number, restitution: number): Body {
         // the original code only works well with whole number static objects
         center.x = Math.floor(center.x);
@@ -158,51 +279,68 @@ export namespace physics {
         return createRigidBody(world, center, mass, friction, restitution, 1, Math.hypot(width, height) / 2, width, height);
     };
 
-    // Move a shape along a vector
-    export function moveShape(shape: Body, v: Vector2) {
-        if (shape.pinned) {
+    /**
+     * Move a body 
+     * 
+     * @param body The body to move
+     * @param v The amount to move
+     */
+    export function moveBody(body: Body, v: Vector2): void {
+        if (body.pinned) {
             return;
         }
-        if (shape.mass === 0) {
+        if (body.mass === 0) {
             return;
         }
 
         // Center
-        shape.center = addVec2(shape.center, v);
+        body.center = addVec2(body.center, v);
 
         // Rectangle (move vertex)
-        if (shape.type) {
+        if (body.type) {
             for (let i = 4; i--;) {
-                shape.vertices[i] = addVec2(shape.vertices[i], v);
+                body.vertices[i] = addVec2(body.vertices[i], v);
             }
-            calcBoundingBox(shape);
+            calcBoundingBox(body);
         }
     };
 
-    // Rotate a shape around its center
-    export function rotateShape(shape: Body, angle: number) {
+    /**
+     * Rotate a body around its center
+     * 
+     * @param body The body to rotate
+     * @param angle The angle in radian to rotate the body by
+     */
+    export function rotateBody(body: Body, angle: number): void {
         // Update angle
-        shape.angle += angle;
+        body.angle += angle;
 
         // Rectangle (rotate vertex)
-        if (shape.type) {
+        if (body.type) {
             for (let i = 4; i--;) {
-                shape.vertices[i] = rotateVec2(shape.vertices[i], shape.center, angle);
+                body.vertices[i] = rotateVec2(body.vertices[i], body.center, angle);
             }
-            computeRectNormals(shape);
-            calcBoundingBox(shape);
+            computeRectNormals(body);
+            calcBoundingBox(body);
         }
     };
 
+    /**
+     * Move the physics world through a step of a given time period.
+     * 
+     * @param fps The frames per second the world is running at. The step will be 1/fps
+     * in length.
+     * @param world The world to step 
+     */
     export function worldStep(fps: number, world: World) {
         const all = allBodies(world);
 
         for (const body of world.dynamicBodies) {
             // Update position/rotation
             body.velocity = addVec2(body.velocity, scaleVec2(body.acceleration, 1 / fps));
-            moveShape(body, scaleVec2(body.velocity, 1 / fps));
+            moveBody(body, scaleVec2(body.velocity, 1 / fps));
             body.angularVelocity += body.angularAcceleration * 1 / fps;
-            rotateShape(body, body.angularVelocity * 1 / fps);
+            rotateBody(body, body.angularVelocity * 1 / fps);
         }
 
         // apply velocity to try and maintain joints
@@ -221,7 +359,7 @@ export namespace physics {
                         } else {
                             vec = scaleVec2(vec, (1 / distance) * diff * joint.rigidity * (other.mass === 0 ? 1 : 0.5));
                         }
-                        moveShape(body, vec);
+                        moveBody(body, vec);
                         body.velocity = addVec2(body.velocity, scaleVec2(vec, fps));
                     }
                 }
@@ -295,43 +433,114 @@ export namespace physics {
         }
     };
 
+    /**
+     * Check if the physics system is at rest.
+     * 
+     * @param world The world to check
+     * @param forSeconds The number of seconds a body must be at rest to be considered stopped
+     * @returns True if all bodies are at rest
+     */
     export function atRest(world: World, forSeconds: number = 1): boolean {
         return !world.dynamicBodies.find(b => b.restingTime < forSeconds);
     }
 
-    // 2D vector tools
+    /**
+     * Create a new vector 
+     * 
+     * @param x The x value of the new vector
+     * @param y The y value of the new vector
+     * @returns The newly created vector
+     */
     export function newVec2(x: number, y: number): Vector2 {
         return ({ x, y });
     };
 
+    /**
+     * Get the length of a vector
+     * 
+     * @param v The vector to measure 
+     * @returns The length of the vector
+     */
     export function lengthVec2(v: Vector2): number {
         return dotProduct(v, v) ** .5;
     }
 
+    /**
+     * Add a vector to another
+     * 
+     * @param v The first vector to add
+     * @param w The second vector to add
+     * @returns The newly created vector containing the addition result
+     */
     export function addVec2(v: Vector2, w: Vector2): Vector2 {
         return newVec2(v.x + w.x, v.y + w.y);
     }
 
+    /**
+     * Subtract a vector to another
+     * 
+     * @param v The vector to be subtracted from
+     * @param w The vector to subtract 
+     * @returns The newly created vector containing the subtraction result
+     */
     export function subtractVec2(v: Vector2, w: Vector2): Vector2 {
         return addVec2(v, scaleVec2(w, -1));
     }
 
+    /**
+     * Scale a vector
+     * 
+     * @param v The vector to scale
+     * @param n The amount to scale the vector by
+     * @returns The newly created vector 
+     */
     export function scaleVec2(v: Vector2, n: number): Vector2 {
         return newVec2(v.x * n, v.y * n);
     }
 
+    /**
+     * Get the dot product of two vector
+     * 
+     * @param v The first vector to get the dot product from
+     * @param w The second vector to get the dot product from
+     * @returns The dot product of the two vectors
+     */
     export function dotProduct(v: Vector2, w: Vector2): number {
         return v.x * w.x + v.y * w.y;
     }
 
+    /**
+     * Get the cross product of two vector
+     * 
+     * @param v The first vector to get the cross product from
+     * @param w The second vector to get the cross product from
+     * @returns The cross product of the two vectors
+     */
     export function crossProduct(v: Vector2, w: Vector2): number {
         return v.x * w.y - v.y * w.x;
     }
 
-    export function rotateVec2(v: Vector2, center: Vector2, angle: number, x = v.x - center.x, y = v.y - center.y): Vector2 {
+    /**
+     * Rotate a vector around a specific point
+     * 
+     * @param v The vector to rotate
+     * @param center The center of the rotate
+     * @param angle The angle in radians to rotate the vector by
+     * @returns The newly created vector result
+     */
+    export function rotateVec2(v: Vector2, center: Vector2, angle: number): Vector2 {
+        const x = v.x - center.x;
+        const y = v.y - center.y;
+
         return newVec2(x * Math.cos(angle) - y * Math.sin(angle) + center.x, x * Math.sin(angle) + y * Math.cos(angle) + center.y);
     }
 
+    /**
+     * Normalize a vector (make it a unit vector)
+     * 
+     * @param v The vector to normalize 
+     * @returns The newly created normalized vector
+     */
     export function normalize(v: Vector2): Vector2 {
         return scaleVec2(v, 1 / (lengthVec2(v) || 1));
     }
@@ -406,10 +615,22 @@ export namespace physics {
         return body;
     }
 
+    /**
+     * Add a body to the world
+     * 
+     * @param world The world to which the body should be added
+     * @param body The body to add
+     */
     export function addBody(world: World, body: Body): void {
         (body.static ? world.staticBodies : world.dynamicBodies).push(body);
     }
 
+    /**
+     * Remove a body from the world
+     * 
+     * @param world The world from which the body should be removed
+     * @param body The body to remove
+     */
     export function removeBody(world: World, body: Body): void {
         const list = (body.static ? world.staticBodies : world.dynamicBodies);
         const index = list.findIndex(b => b.id == body.id);
@@ -678,8 +899,8 @@ export namespace physics {
             return false;
         }
 
-        moveShape(s1, scaleVec2(correctionAmount, -s1.mass));
-        moveShape(s2, scaleVec2(correctionAmount, s2.mass));
+        moveBody(s1, scaleVec2(correctionAmount, -s1.mass));
+        moveBody(s2, scaleVec2(correctionAmount, s2.mass));
 
         // the direction of collisionInfo is always from s1 to s2
         // but the Mass is inversed, so start scale with s2 and end scale with s1
@@ -775,23 +996,30 @@ export namespace physics {
         return true;
     }
 
+    /**
+     * Create a demo scene to test out physics 
+     * 
+     * @param count The number of elements to create
+     * @param withBoxes True if we want to include boxes in the demo
+     * @returns The demo scene as a physics world
+     */
     export function createDemoScene(count: number, withBoxes: boolean): World {
         // DEMO
         // ====
         const world = createWorld();
 
         let r = createRectangle(world, newVec2(500, 200), 400, 20, 0, 1, .5);
-        rotateShape(r, 2.8);
+        rotateBody(r, 2.8);
         createRectangle(world, newVec2(200, 400), 400, 20, 0, 1, .5);
         createRectangle(world, newVec2(100, 200), 200, 20, 0, 1, .5);
         createRectangle(world, newVec2(10, 360), 20, 100, 0, 1, .5);
 
         for (let i = 0; i < count; i++) {
             r = createCircle(world, newVec2(Math.random() * 800, Math.random() * 450 / 2), Math.random() * 20 + 10, Math.random() * 30, Math.random() / 2, Math.random() / 2);
-            rotateShape(r, Math.random() * 7);
+            rotateBody(r, Math.random() * 7);
             if (withBoxes) {
                 r = createRectangle(world, newVec2(Math.random() * 800, Math.random() * 450 / 2), Math.random() * 20 + 10, Math.random() * 20 + 10, Math.random() * 30, Math.random() / 2, Math.random() / 2);
-                rotateShape(r, Math.random() * 7);
+                rotateBody(r, Math.random() * 7);
             }
         }
 

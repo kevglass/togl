@@ -19,6 +19,7 @@
   },
   "scripts": {
     "build": "tsc",
+    "doc": "typedoc src/index.ts",
     "watch": "tsc --watch"
   },
   "repository": {
@@ -34,5 +35,8 @@
   "dependencies": {
     "potpack": "^2.0.0",
     "typescript": "^5.3.3"
+  },
+  "devDependencies": {
+    "typedoc": "^0.25.8"
   }
 }

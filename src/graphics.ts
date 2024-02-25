@@ -5,56 +5,185 @@ import { webglRenderer } from "./webglRenderer";
 
 // This is a very brute force simple renderer. It's just blitting images and text to 
 // a canvas. It's wrapped with a view to replacing it with something decent
-console.log("TOGL 1.1.0");
 
+/**
+ * A wrapper around graphics rendering and game loops. The graphics namespace provides
+ * the interface to the underlying renderer implementation. At the moment there are 
+ * two renderers, one for using pure Canvas and one for using WebGL.
+ * 
+ * To use the graphics library create a Game implementation. 
+ * 
+ * ```
+ * class MyGame implements Game {
+ *  image: GameImage;
+ *  tileSet: TileSet;
+ * 
+ *  // load everything you want to use here
+ *  constructor() {
+ *      graphics.init(RendererType.WEBGL);
+ *      image = graphics.loadImage("https://game.com/image.png");
+ *      tileSet = graphics.loadTileSet("https://game.com/tiles.png", 32, 32);
+ *  }
+ * 
+ *  // render everything in the game here
+ *  render(): void {
+ *      graphics.drawImage(image, 100, 100);
+ *      graphics.drawTile(tileSet, 200, 200, 0);
+ *  }
+ * 
+ *  // notification that resources that were requested have been loaded
+ *  resourcesLoaded(): void {};
+ * 
+ *  // input event call backs - use to control the game
+ *  mouseDown(): void {}
+ *  mouseUp(): void {}
+ *  mouseDragged(): void {}
+ *  keyUp(): void {}
+ *  keyDown(): void {}
+ * }
+ * ```
+ */
 export namespace graphics {
     const canvas = document.getElementById("gamecanvas") as HTMLCanvasElement;
     let eventListener: Game | undefined;
     let mouseDown = false;
 
+    /**
+     * The width assigned to a set of characters in a font
+     */
     export type FontCharacterWidth = [number, string];
+    /**
+     * The widths of each set of character in a font
+     */
     export type FontCharacterWidths = FontCharacterWidth[];
 
+    /**
+     * An offscreen rendering context. Use to optimize rendering
+     * of common pieces.
+     */
     export interface Offscreen {
+        /** The width of the offscreen canvas in pixels */
         width: number;
+        /** The height of the offscreen canvas in pixels */
         height: number;
     }
 
+    /**
+     * A font generate in the graphics context. 
+     */
     export interface GameFont {
+        /** The vertical space to give each line */
         lineHeight: number;
+        /** The tile set of images that is used to render the font  */
         tiles: TileSet;
+        /** The widths of the characters in the font */
         widths: FontCharacterWidths;
+        /** The collections of characters available in this font */
         chars: string;
+        /** The offset from the top of the image to the font baseline where the character will be aligned */
         baseline: number;
     }
 
+    /**
+     * The type of renderer implementation to use 
+     */
     export enum RendererType {
+        /** Render using the raw Canvas and 2D context operations */
         CANVAS = "canvas",
+        /** Render using the WebGL implementation */
         WEBGL = "webgl",
     }
 
+    /**
+     * An image loaded in this graphics context
+     */
     export interface GameImage {
+        /** The ID given to the image, normally the URL */
         id: string;
+        /** The width of the image */
         width: number;
+        /** The height of the image */
         height: number;
     }
 
-    // a tile set cuts an imag into pieces to be used as sprites
+    /**
+     * A tile set loaded in this graphics context. A tile set is an
+     * image that is cut into evenly spaced tiles for rendering.
+     */
     export interface TileSet {
+        /** The image loaded for this tile set */
         image: GameImage;
+        /** The width of each tile */
         tileWidth: number;
+        /** The height of each tile */
         tileHeight: number;
+        /** The collection of images for each cut tile */
         tiles: GameImage[];
     }
 
-    // a hook back for mouse/touch events
+    /**
+     * Definition of a game that will use this graphics context. Events
+     * are provided by the library and a call back for the render loop.
+     */
     export interface Game extends resources.ResourceListener {
+        /** 
+         * Notification that the mouse has been pressed or the a finger
+         * has been touched
+         * 
+         * @param x The x coordinate of the touch/press
+         * @param y The y coordinate of the touch/press
+         * @param index The mouse button or finger that was used
+         * to make the touch/press 
+         */
         mouseDown(x: number, y: number, index: number): void;
+
+        /** 
+         * Notification tat the mouse has been dragged or the a finger
+         * has been moved
+         * 
+         * @param x The x coordinate of the touch/drag
+         * @param y The y coordinate of the touch/drag
+         * @param index The mouse button or finger that was used
+         * to make the touch/drag 
+         */
         mouseDrag(x: number, y: number, index: number): void;
+
+        /** 
+         * Notification that the mouse has been released or the a finger
+         * has been lifted
+         * 
+         * @param x The x coordinate of the touch/release
+         * @param y The y coordinate of the touch/release
+         * @param index The mouse button or finger that was used
+         * to make the touch/release 
+         */
         mouseUp(x: number, y: number, index: number): void;
+
+        /**
+         * Notification that a key has been pressed on the keyboard
+         * 
+         * @param key The name of the key pressed
+         */
         keyDown(key: string): void;
+
+        /**
+         * Notification that a key has been released on the keyboard
+         * 
+         * @param key The name of the key released
+         */
         keyUp(key: string): void;
+
+        /**
+         * Notification that all tracked resources (images, sounds, etc) have
+         * been loaded
+         */
         resourcesLoaded(): void;
+
+        /**
+         * Callback for the render loop. It's important to only render to the
+         * main context in this method so the underlying renderer can make 
+         * assumptions about the graphics being used.
+         */
         render(): void;
     }
 
@@ -161,65 +290,217 @@ export namespace graphics {
         requestAnimationFrame(() => { loop(game) });
     }
 
+    /**
+     * The description of an implementation that can provide rendering for the graphics context
+     */
     export interface Renderer {
+        /**
+         * Initialize the renderer
+         * 
+         * @param canvas The canvas that will be rendered to 
+         * @param pixelatedRenderingEnabled True if images will be scaled with nearest neighbor rather than
+         * attempting to smooth
+         * @param textureSize A hint to the max texture size to use. This is useful when you want to reduce
+         * the graphics memory requirements.
+         * @returns The created renderer
+         */
         init(canvas: HTMLCanvasElement, pixelatedRenderingEnabled: boolean, textureSize?: number): Renderer;
 
+        /**
+         * Load an image from a given URL
+         * 
+         * @param url The URL to the image to be loaded
+         * @param track True if we want to track the resource loading and report it
+         * @param id The ID to give the new image
+         * @param smooth True if we want to override pixel based scaling and attempt to render scaled versions
+         * smoothly
+         * @returns The loaded tile image
+         */
         loadImage(url: string, track: boolean, id?: string, smooth?: boolean): GameImage
 
-        // load an image and store it with tileset information
+        /**
+         * Load an tile set from a given URL
+         * 
+         * @param url The URL of the image to load 
+         * @param tw The width of each tile in the image
+         * @param th The height of each tile int he image
+         * @param id The ID to give the loaded image
+         * @returns The loaded tile set
+         */
         loadTileSet(url: string, tw: number, th: number, id?: string): TileSet;
 
-        // Draw a single tile from a tile set by default at its natural size
+        /**
+         * Draw a tile to the graphics context
+         * 
+         * @param tiles The tile set containing the tile to draw
+         * @param x The x coordinate to draw at
+         * @param y The y coordinate to draw at 
+         * @param tile The index of the tile to render
+         * @param width The width to render the tile at in pixels
+         * @param height The height to render the tile at in pixels
+         */
         drawTile(tiles: TileSet, x: number, y: number, tile: number, width: number, height: number): void;
 
-        // draw a rectangle outlined to the canvas
+        /**
+         * Draw the outline of a rectangle to the graphics context
+         * 
+         * @param x The x coordinate to draw at
+         * @param y The y coordinate to draw at 
+         * @param width The width of the rectangle to draw
+         * @param height The height of the rectangle to draw
+         * @param col The color to draw the rectangle in - in CSS format
+         */
         drawRect(x: number, y: number, width: number, height: number, col: string): void;
 
-        // fill a rectangle to the canvas
+        /**
+         * Draw a rectangle to the graphics context
+         * 
+         * @param x The x coordinate to draw at
+         * @param y The y coordinate to draw at 
+         * @param width The width of the rectangle to draw
+         * @param height The height of the rectangle to draw
+         * @param col The color to fill the rectangle in - in CSS format
+         */
         fillRect(x: number, y: number, width: number, height: number, col: string): void;
 
-        // draw an image to the canvas 
+        /**
+         * Draw an image to the graphics context
+         * 
+         * @param image The image to be drawn
+         * @param x The x coordinate to draw at
+         * @param y The y coordinate to draw at 
+         * @param width The width of the image to draw
+         * @param height The height of the image to draw
+         * @param col The color to tint the image - in CSS format
+         */
         drawImage(image: GameImage, x: number, y: number, width?: number, height?: number, col?: string): void;
 
-        // store the current 'state' of the canvas. This includes transforms, alphas, clips etc
+        /**
+         * Store the current state of the context (transforms, alpha etc) to 
+         * the stack.
+         */
         push(): void;
 
-        // restore the next 'state' of the canvas on the stack.
+        /**
+         * Restore the state of the context (transforms, alpha etc) from
+         * the stack.
+         */
         pop(): void;
 
-        // set the alpha value to use when rendering 
+        /**
+         * Set the alpha to apply when drawing
+         * 
+         * @param alpha The alpha to apply (0-1)
+         */
         alpha(alpha: number): void;
 
-        // translate the rendering context by a given amount
+        /**
+         * Apply a translation transform to the current graphics context
+         * 
+         * @param x The amount to transform on the x axis
+         * @param y The amount to transform on the y axis
+         */
         translate(x: number, y: number): void;
 
+        /**
+         * Apply a rotation transform to the current graphics context
+         * 
+         * @param ang The angle to rotate the context by
+         */
         rotate(ang: number): void;
 
-        // scale the rendering context by a given amount
+        /**
+         * Apply a scaling transform to the current graphics context
+         * 
+         * @param x The amount to scale on the x axis
+         * @param y The amount to scale on the y axis
+         */
         scale(x: number, y: number): void;
 
+        /**
+         * Re-initialize any renderer resources on load of new images
+         */
         initResourceOnLoaded(): void;
 
+        /**
+         * Called before the game renders
+         */
         preRender(): void;
 
+        /**
+         * Called after the game renders
+         */
         postRender(): void;
 
+        /**
+         * Create an offscreen rendering context
+         * 
+         * @param width The width of the new context in pixels
+         * @param height The height of the new context in pixels
+         * @returns The newly created offscreen canvas
+         */
         createOffscreen(width: number, height: number): Offscreen;
 
+        /**
+         * Draw an offscreen context to the current context
+         * 
+         * @param offscreen The offscreen context to draw
+         * @param x The x coordinate to draw at
+         * @param y The y coordinate to draw at
+         */
         drawOffscreen(offscreen: Offscreen, x: number, y: number): void;
 
+        /**
+         * Draw a section of an offscreen context to the current context
+         * 
+         * @param offscreen The offscreen context to draw
+         * @param x The x coordinate to draw at
+         * @param y The y coordinate to draw at
+         * @param sx The x coordinate in the offscreen canvas to start drawing from
+         * @param sy The y coordinate in the offscreen canvas to start drawing from
+         * @param width The width of the section to draw
+         * @param height The height of the section to draw
+         */
         drawOffscreenSection(offscreen: Offscreen, x: number, y: number, sx: number, sy: number, width: number, height: number): void;
 
+        /**
+         * Configure the graphics context to render to the offscreen canvas provided
+         * 
+         * @param offscreen The offscreen canvas that this context should render to
+         */
         drawToOffscreen(offscreen: Offscreen): void;
 
+        /**
+         * Configure the graphics context to render to the screen
+         */
         drawToMain(): void;
 
+        /**
+         * Check if this renderer is ready to draw
+         * 
+         * @returns True if the renderer is fully initialized 
+         */
         ready(): boolean;
 
+        /**
+         * Clear a rectangle on the current graphics context. Resets pixels completely.
+         * 
+         * @param x The x coordinate of the rectangle to clear
+         * @param y The y coordinate of the rectangle to clear
+         * @param width The width of the rectangle to clear
+         * @param height The height of the rectangle to clear
+         */
         clearRect(x: number, y: number, width: number, height: number): void;
 
+        /**
+         * Get the number of draws thats have been applied in the last frame
+         */
         getDrawCount(): number;
 
+        /**
+         * Notification that the screen has resized allowing the renderer to 
+         * regenerate any resources.
+         */
         resize(): void;
     }
 
@@ -228,6 +509,16 @@ export namespace graphics {
     let frameCount: number = 0;
     let fps: number = 0;
 
+    /**
+     * Initialize the graphics context
+     * 
+     * @param rendererType The type of renderer to use @see RendererType
+     * @param pixelatedRenderingEnabled True if images will be scaled with nearest neighbor rather than
+     * attempting to smooth
+     * @param textureSize A hint to the max texture size to use. This is useful when you want to reduce
+     * the graphics memory requirements.
+     * @returns The created renderer
+     */
     export function init(rendererType: RendererType, pixelatedRenderingEnabled = false, textureSize: number = 0): void {
         console.log("TOGL Renderer: " + rendererType + " (pixelated = " + pixelatedRenderingEnabled + ")");
 
@@ -239,7 +530,12 @@ export namespace graphics {
         }
     }
 
-    // register an event listener for mouse/touch events
+    /**
+     * Start the rendering loop and event listening. Passes events to the given 
+     * game instance.
+     * 
+     * @param game The game to receive events from the rendering and events processes
+     */
     export function startRendering(game: Game): void {
         eventListener = game;
         resources.addResourceListener(game);
@@ -253,27 +549,69 @@ export namespace graphics {
         requestAnimationFrame(() => { loop(game) });
     }
 
+    /**
+     * Get the number of frames per second being rendered
+     * 
+     * @returns The number of frames per second rendered
+     */
     export function getFPS(): number {
         return fps;
     }
 
+    /**
+     * Get the width of the context in pixels
+     * 
+     * @returns The width of the context in pixels 
+     */
     export function width(): number {
         return canvas.width;
     }
 
+    /**
+     * Get the height of the context in pixels
+     * 
+     * @returns The height of the context in pixels 
+     */
     export function height(): number {
         return canvas.height;
     }
 
+    /**
+     * Load an image from a given URL
+     * 
+     * @param url The URL to the image to be loaded
+     * @param track True if we want to track the resource loading and report it
+     * @param id The ID to give the new image
+     * @param smooth True if we want to override pixel based scaling and attempt to render scaled versions
+     * smoothly
+     * @returns The loaded tile image
+     */
     export function loadImage(url: string, track = true, id?: string, smooth?: boolean): GameImage {
         return currentRenderer.loadImage(url, track, id, smooth);
     }
 
-    // load an image and store it with tileset information
+    /**
+     * Load an tile set from a given URL
+     * 
+     * @param url The URL of the image to load 
+     * @param tw The width of each tile in the image
+     * @param th The height of each tile int he image
+     * @param id The ID to give the loaded image
+     * @returns The loaded tile set
+     */
     export function loadTileSet(url: string, tw: number, th: number, id?: string): TileSet {
         return currentRenderer.loadTileSet(url, tw, th, id);
     }
 
+    /**
+     * Generate an image that contains the glyphs from a font. It's considerably quicker
+     * to render images than glyphs.
+     * 
+     * @param size The size in pixels of the font to render
+     * @param col The color of the text to render
+     * @param charset The list of characters to render
+     * @returns A newly generate font that contains the character specified
+     */
     export function generateFont(size: number, col: string, charset?: string): GameFont {
         const characterSet = charset ??
             "ABCDEFGHIJKLMNOPQRSTUVWXYZ" +
@@ -336,6 +674,16 @@ export namespace graphics {
         }
     }
 
+    /**
+     * Create a font from a tile set 
+     * 
+     * @param tiles The tiles for each glyph
+     * @param lineHeight The height to use when rendering lines of text
+     * @param widths The widths of the characters 
+     * @param chars The characters included in the font
+     * @param baseline The distance from the top of the tile to the base line for positioning
+     * @returns The newly created font
+     */
     export function createFont(tiles: TileSet, lineHeight: number, widths: FontCharacterWidths, chars: string, baseline: number): GameFont {
         return {
             tiles,
@@ -346,11 +694,30 @@ export namespace graphics {
         }
     }
 
-    // Draw a single tile from a tile set by default at its natural size
+    /**
+     * Draw a tile to the graphics context
+     * 
+     * @param tiles The tile set containing the tile to draw
+     * @param x The x coordinate to draw at
+     * @param y The y coordinate to draw at 
+     * @param tile The index of the tile to render
+     * @param width The width to render the tile at in pixels
+     * @param height The height to render the tile at in pixels
+     */
     export function drawTile(tiles: TileSet, x: number, y: number, tile: number, width: number = tiles.tileWidth, height: number = tiles.tileHeight): void {
         currentRenderer.drawTile(tiles, x, y, tile, width, height);
     }
 
+    /**
+     * Brute force drawing of outlined text
+     * 
+     * @param x The x coordinate to draw the text at
+     * @param y The y coordinate to draw the text at
+     * @param str The text to draw
+     * @param font The font to use when drawing
+     * @param outlineWidth The width of the outline
+     * @param outlineFont The font to use drawing the outline
+     */
     export function outlineText(x: number, y: number, str: string, font: GameFont, outlineWidth: number, outlineFont: GameFont): void {
         drawText(x - outlineWidth, y - outlineWidth, str, outlineFont);
         drawText(x + outlineWidth, y - outlineWidth, str, outlineFont);
@@ -359,7 +726,14 @@ export namespace graphics {
         drawText(x, y, str, font);
     }
 
-    // draw text at the given location 
+    /**
+     * Draw text at the given position
+     * 
+     * @param x The x coordinate to draw the text at
+     * @param y The y coordinate to draw the text at
+     * @param text The text to draw
+     * @param font The font to use when drawing
+     */
     export function drawText(x: number, y: number, text: string, font: GameFont): void {
         push();
         translate(x, y - font.baseline);
@@ -381,14 +755,28 @@ export namespace graphics {
 
         pop();
     }
-
-    // draw a rectangle outlined to the canvas
+    
+    /**
+     * Draw the outline of a rectangle to the graphics context
+     *
+     * @param x The x coordinate to draw at
+     * @param y The y coordinate to draw at 
+     * @param width The width of the rectangle to draw
+     * @param height The height of the rectangle to draw
+     * @param col The color to draw the rectangle in - in CSS format
+     */
     export function drawRect(x: number, y: number, width: number, height: number, col: string): void {
         currentRenderer.drawRect(x, y, width, height, col);
     }
 
-    // determine the width of a string when rendered at a given size
-    export function textWidth(text: string, font: GameFont) {
+    /**
+     * Get the width in pixels of the text provided
+     * 
+     * @param text The text to measure
+     * @param font The font to use when measuring
+     * @returns The width in pixels of the text provided
+     */
+    export function textWidth(text: string, font: GameFont): number {
         let x = 0;
         for (let i = 0; i < text.length; i++) {
             const c = text.charAt(i);
@@ -405,13 +793,18 @@ export namespace graphics {
         return x;
     }
 
-    // draw a string onto the canvas centring it on the screen
+    /**
+     * Draw text centered horizontally on the screen
+     * 
+     * @param text The text to draw
+     * @param y The y coordinate to draw the text at
+     * @param font The font to use rendering 
+     */
     export function centerText(text: string, y: number, font: GameFont): void {
         drawText(Math.floor((width() - textWidth(text, font)) / 2), y, text, font);
     }
 
-    // give the graphics to do anything it needs to do per frame
-    export function update(): void {
+    function update(): void {
         const screenWidth = Math.floor(window.innerWidth);
         const screenHeight = Math.floor(window.innerHeight);
 
@@ -422,73 +815,162 @@ export namespace graphics {
         }
     }
 
-    // fill a rectangle to the canvas
+    /**
+     * Draw a rectangle to the graphics context
+     * 
+     * @param x The x coordinate to draw at
+     * @param y The y coordinate to draw at 
+     * @param width The width of the rectangle to draw
+     * @param height The height of the rectangle to draw
+     * @param col The color to fill the rectangle in - in CSS format
+     */
     export function fillRect(x: number, y: number, width: number, height: number, col: string) {
         currentRenderer.fillRect(x, y, width, height, col);
     }
 
-    // draw an image to the canvas 
+    /**
+     * Draw an image to the graphics context
+     * 
+     * @param image The image to be drawn
+     * @param x The x coordinate to draw at
+     * @param y The y coordinate to draw at 
+     * @param width The width of the image to draw
+     * @param height The height of the image to draw
+     * @param col The color to tint the image - in CSS format
+     */
     export function drawImage(image: GameImage, x: number, y: number, width?: number, height?: number, col?: string): void {
         currentRenderer.drawImage(image, x, y, width, height, col);
     }
 
-    // store the current 'state' of the canvas. This includes transforms, alphas, clips etc
+    /**
+     * Store the current state of the context (transforms, alpha etc) to 
+     * the stack.
+     */
     export function push() {
         currentRenderer.push();
     }
 
-    // restore the next 'state' of the canvas on the stack.
+    /**
+     * Restore the state of the context (transforms, alpha etc) from
+     * the stack.
+     */
     export function pop() {
         currentRenderer.pop();
     }
 
-    // set the alpha value to use when rendering 
+    /**
+     * Set the alpha to apply when drawing
+     * 
+     * @param alpha The alpha to apply (0-1)
+     */
     export function alpha(alpha: number): void {
         currentRenderer.alpha(alpha);
     }
 
-    // translate the rendering context by a given amount
+    /**
+     * Apply a translation transform to the current graphics context
+     * 
+     * @param x The amount to transform on the x axis
+     * @param y The amount to transform on the y axis
+     */
     export function translate(x: number, y: number): void {
         currentRenderer.translate(x, y);
     }
 
-    // scale the rendering context by a given amount
+    /**
+     * Apply a scaling transform to the current graphics context
+     * 
+     * @param x The amount to scale on the x axis
+     * @param y The amount to scale on the y axis
+     */
     export function scale(x: number, y: number): void {
         currentRenderer.scale(x, y);
     }
 
+    /**
+     * Apply a rotation transform to the current graphics context
+     * 
+     * @param ang The angle to rotate the context by
+     */
     export function rotate(ang: number): void {
         currentRenderer.rotate(ang);
     }
 
+    /**
+     * Re-initialize any renderer resources on load of new images
+     */
     export function initResourceOnLoaded(): void {
         currentRenderer.initResourceOnLoaded();
     }
 
+    /**
+     * Create an offscreen rendering context
+     * 
+     * @param width The width of the new context in pixels
+     * @param height The height of the new context in pixels
+     * @returns The newly created offscreen canvas
+     */
     export function createOffscreen(width: number, height: number): Offscreen {
         return currentRenderer.createOffscreen(width, height);
     }
 
+    /**
+     * Draw an offscreen context to the current context
+     * 
+     * @param offscreen The offscreen context to draw
+     * @param x The x coordinate to draw at
+     * @param y The y coordinate to draw at
+     */
     export function drawOffscreen(offscreen: Offscreen, x: number, y: number): void {
         currentRenderer.drawOffscreen(offscreen, x, y);
     }
 
+    /**
+     * Draw a section of an offscreen context to the current context
+     * 
+     * @param offscreen The offscreen context to draw
+     * @param x The x coordinate to draw at
+     * @param y The y coordinate to draw at
+     * @param sx The x coordinate in the offscreen canvas to start drawing from
+     * @param sy The y coordinate in the offscreen canvas to start drawing from
+     * @param width The width of the section to draw
+     * @param height The height of the section to draw
+     */
     export function drawOffscreenSection(offscreen: Offscreen, x: number, y: number, sx: number, sy: number, width: number, height: number): void {
         currentRenderer.drawOffscreenSection(offscreen, x, y, sx, sy, width, height);
     }
 
+    /**
+     * Configure the graphics context to render to the offscreen canvas provided
+     * 
+     * @param offscreen The offscreen canvas that this context should render to
+     */
     export function drawToOffscreen(offscreen: Offscreen): void {
         currentRenderer.drawToOffscreen(offscreen);
     }
 
+    /**
+     * Configure the graphics context to render to the screen
+     */
     export function drawToMain(): void {
         currentRenderer.drawToMain();
     }
 
+    /**
+     * Clear a rectangle on the current graphics context. Resets pixels completely.
+     * 
+     * @param x The x coordinate of the rectangle to clear
+     * @param y The y coordinate of the rectangle to clear
+     * @param width The width of the rectangle to clear
+     * @param height The height of the rectangle to clear
+     */
     export function clearRect(x: number, y: number, width: number, height: number): void {
         currentRenderer.clearRect(x, y, width, height);
     }
 
+    /**
+     * Get the number of draws thats have been applied in the last frame
+     */
     export function getDrawCount(): number {
         return currentRenderer.getDrawCount();
     }

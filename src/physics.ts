@@ -144,7 +144,7 @@ export namespace physics {
         center.y = Math.floor(center.y);
         radius = Math.floor(radius);
 
-        return createRigidShape(world, center, mass, friction, restitution, 0, radius);
+        return createRigidBody(world, center, mass, friction, restitution, 0, radius);
     };
 
     // New rectangle
@@ -155,7 +155,7 @@ export namespace physics {
         width = Math.floor(width);
         height = Math.floor(height);
 
-        return createRigidShape(world, center, mass, friction, restitution, 1, Math.hypot(width, height) / 2, width, height);
+        return createRigidBody(world, center, mass, friction, restitution, 1, Math.hypot(width, height) / 2, width, height);
     };
 
     // Move a shape along a vector
@@ -363,7 +363,7 @@ export namespace physics {
     }
 
     // New shape
-    function createRigidShape(world: PhysicsWorld, center: Vector2, mass: number, friction: number, restitution: number, type: number, bounds: number, width = 0, height = 0): Body {
+    function createRigidBody(world: PhysicsWorld, center: Vector2, mass: number, friction: number, restitution: number, type: number, bounds: number, width = 0, height = 0): Body {
         const body: Body = {
             id: world.nextId++,
             type: type, // 0 circle / 1 rectangle
@@ -403,9 +403,20 @@ export namespace physics {
             computeRectNormals(body);
         }
 
-        (body.static ? world.staticBodies : world.dynamicBodies).push(body);
 
         return body;
+    }
+
+    export function addBody(world: PhysicsWorld, body: Body): void {
+        (body.static ? world.staticBodies : world.dynamicBodies).push(body);
+    }
+
+    export function removeBody(world: PhysicsWorld, body: Body): void {
+        const list = (body.static ? world.staticBodies : world.dynamicBodies);
+        const index = list.findIndex(b => b.id == body.id);
+        if (index >= 0) {
+            list.splice(index, 1);
+        }
     }
 
     // Test if two shapes have intersecting bounding circles

@@ -3,3 +3,5 @@
 # TOGL - Tiny Open Game Library.
 A free, open source, teeny weeny game library for typescript. Mostly just some utilities for making games.
 
+[Documentation](https://kevglass.github.io/togl/)
+

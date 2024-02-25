@@ -1,4 +1,16 @@
+/**
+ * A terrible and overly simplistic XML parser. Doesn't required browser or Node APIs though.
+ */
 export namespace xml {
+    /**
+     * Parse an XML document in a object structure. The generated 
+     * object has a hierarchy to match the XML. Where the XML
+     * has multiple of the same tag name an array of elements 
+     * named after the tag is generated.
+     * 
+     * @param xml The XML to parse
+     * @returns The generated object
+     */
     export function parseXml(xml: string): any {
         let element = "";
         let elements: string[] = [];

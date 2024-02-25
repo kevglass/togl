@@ -1,17 +1,30 @@
 import { resources } from "./resources";
 
+/**
+ * The sound namespace contains wrappers for loading and playing
+ * sounds through the AudioContext API.
+ */
 export namespace sound {
     const audioContext: AudioContext = new AudioContext();
     audioContext.resume();
 
-    // A lightweight wrapper around a loaded sound
+    /**
+     * A sound loaded in this context
+     */
     export interface Sound {
+        /** The audio buffer held for this sound */
         buffer?: AudioBuffer;
+        /** The original data loaded for this sound */
         data?: ArrayBuffer;
     }
 
-    // load a sound from the URL given. This will also attempt to 
-    // buffer the loaded data into an AudioBuffer
+    /**
+     * Load a sound from the given URL.
+     * 
+     * @param url The URL to load the sound from
+     * @param track True if want to track the loading of this resource
+     * @returns The loaded sound 
+     */
     export function loadSound(url: string, track = true): Sound {
         if (track) {
             resources.resourceRequested(url);
@@ -37,8 +50,11 @@ export namespace sound {
         return result;
     }
 
-    // Play a given sound, if the sound has yet to be buffered it will
-    // be before wee play it
+    /**
+     * Play a sound in this context
+     * 
+     * @param sound The sound loaded to play
+     */
     export function playSound(sound: Sound): void {
         tryLoadSound(sound).then(() => {
             if (sound.buffer) {
@@ -50,8 +66,11 @@ export namespace sound {
         })
     }
 
-    // Play a given sound, if the sound has yet to be buffered it will
-    // be before wee play it
+    /**
+     * Loop a sound in this context (good for music)
+     * 
+     * @param sound The sound loaded to loop
+     */
     export function loopSound(sound: Sound): void {
         tryLoadSound(sound).then(() => {
             if (sound.buffer) {
@@ -64,8 +83,10 @@ export namespace sound {
         })
     }
 
-    // Hook to cause the audio context to resume when the user does something. Browsers
-    // need audio contexts to be resumed on user input events
+    /**
+     * Hook to start the audio context on user interaction. Required by later
+     * browsers.
+     */
     export function resumeAudioOnInput() {
         audioContext.resume();
     }

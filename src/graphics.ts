@@ -179,7 +179,7 @@ export namespace graphics {
         fillRect(x: number, y: number, width: number, height: number, col: string): void;
 
         // draw an image to the canvas 
-        drawImage(image: GameImage, x: number, y: number, width?: number, height?: number): void;
+        drawImage(image: GameImage, x: number, y: number, width?: number, height?: number, col?: string): void;
 
         // store the current 'state' of the canvas. This includes transforms, alphas, clips etc
         push(): void;
@@ -428,8 +428,8 @@ export namespace graphics {
     }
 
     // draw an image to the canvas 
-    export function drawImage(image: GameImage, x: number, y: number, width?: number, height?: number): void {
-        currentRenderer.drawImage(image, x, y, width, height);
+    export function drawImage(image: GameImage, x: number, y: number, width?: number, height?: number, col?: string): void {
+        currentRenderer.drawImage(image, x, y, width, height, col);
     }
 
     // store the current 'state' of the canvas. This includes transforms, alphas, clips etc

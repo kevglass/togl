@@ -55,7 +55,7 @@ export namespace physics {
         data: any;
     }
 
-    export interface PhysicsWorld {
+    export interface World {
         dynamicBodies: Body[];
 
         staticBodies: Body[];
@@ -66,11 +66,11 @@ export namespace physics {
         joints: Joint[];
     }
 
-    export function allBodies(world: PhysicsWorld): Body[] {
+    export function allBodies(world: World): Body[] {
         return [...world.dynamicBodies, ...world.staticBodies];
     }
 
-    export function getWorldBounds(world: PhysicsWorld): { min: Vector2, max: Vector2 } {
+    export function getWorldBounds(world: World): { min: Vector2, max: Vector2 } {
         const bodies = allBodies(world);
 
         if (bodies.length === 0) {
@@ -103,7 +103,7 @@ export namespace physics {
         return { min, max };
     }
 
-    export function createWorld(gravity?: Vector2): PhysicsWorld {
+    export function createWorld(gravity?: Vector2): World {
         return {
             staticBodies: [],
             dynamicBodies: [],
@@ -115,7 +115,7 @@ export namespace physics {
         }
     };
 
-    export function createJoint(world: PhysicsWorld, bodyA: Body, bodyB: Body, rigidity: number = 1, elasticity: number = 0): void {
+    export function createJoint(world: World, bodyA: Body, bodyB: Body, rigidity: number = 1, elasticity: number = 0): void {
         world.joints.push({
             bodyA: bodyA.id,
             bodyB: bodyB.id,
@@ -125,7 +125,7 @@ export namespace physics {
         });
     };
 
-    export function allowPinnedRotation(world: PhysicsWorld, id: number, mass: number): void {
+    export function allowPinnedRotation(world: World, id: number, mass: number): void {
         const body = world.staticBodies.find(b => b.id === id);
         if (body) {
             body.mass = mass;
@@ -138,7 +138,7 @@ export namespace physics {
     };
 
     // New circle
-    export function createCircle(world: PhysicsWorld, center: Vector2, radius: number, mass: number, friction: number, restitution: number): Body {
+    export function createCircle(world: World, center: Vector2, radius: number, mass: number, friction: number, restitution: number): Body {
         // the original code only works well with whole number static objects
         center.x = Math.floor(center.x);
         center.y = Math.floor(center.y);
@@ -148,7 +148,7 @@ export namespace physics {
     };
 
     // New rectangle
-    export function createRectangle(world: PhysicsWorld, center: Vector2, width: number, height: number, mass: number, friction: number, restitution: number): Body {
+    export function createRectangle(world: World, center: Vector2, width: number, height: number, mass: number, friction: number, restitution: number): Body {
         // the original code only works well with whole number static objects
         center.x = Math.floor(center.x);
         center.y = Math.floor(center.y);
@@ -194,7 +194,7 @@ export namespace physics {
         }
     };
 
-    export function worldStep(fps: number, world: PhysicsWorld) {
+    export function worldStep(fps: number, world: World) {
         const all = allBodies(world);
 
         for (const body of world.dynamicBodies) {
@@ -295,7 +295,7 @@ export namespace physics {
         }
     };
 
-    export function atRest(world: PhysicsWorld, forSeconds: number = 1): boolean {
+    export function atRest(world: World, forSeconds: number = 1): boolean {
         return !world.dynamicBodies.find(b => b.restingTime < forSeconds);
     }
 
@@ -363,7 +363,7 @@ export namespace physics {
     }
 
     // New shape
-    function createRigidBody(world: PhysicsWorld, center: Vector2, mass: number, friction: number, restitution: number, type: number, bounds: number, width = 0, height = 0): Body {
+    function createRigidBody(world: World, center: Vector2, mass: number, friction: number, restitution: number, type: number, bounds: number, width = 0, height = 0): Body {
         const body: Body = {
             id: world.nextId++,
             type: type, // 0 circle / 1 rectangle
@@ -403,15 +403,14 @@ export namespace physics {
             computeRectNormals(body);
         }
 
-
         return body;
     }
 
-    export function addBody(world: PhysicsWorld, body: Body): void {
+    export function addBody(world: World, body: Body): void {
         (body.static ? world.staticBodies : world.dynamicBodies).push(body);
     }
 
-    export function removeBody(world: PhysicsWorld, body: Body): void {
+    export function removeBody(world: World, body: Body): void {
         const list = (body.static ? world.staticBodies : world.dynamicBodies);
         const index = list.findIndex(b => b.id == body.id);
         if (index >= 0) {
@@ -514,7 +513,7 @@ export namespace physics {
     }
 
     // Test collision between two shapes
-    function testCollision(world: PhysicsWorld, c1: Body, c2: Body, collisionInfo: Collision): boolean {
+    function testCollision(world: World, c1: Body, c2: Body, collisionInfo: Collision): boolean {
         // static bodies don't collide with each other
         if ((c1.mass === 0 && c2.mass === 0)) {
             return false;
@@ -664,7 +663,7 @@ export namespace physics {
         return false;
     }
 
-    function resolveCollision(world: PhysicsWorld, s1: Body, s2: Body, collisionInfo: Collision): boolean {
+    function resolveCollision(world: World, s1: Body, s2: Body, collisionInfo: Collision): boolean {
         if (!s1.mass && !s2.mass) {
             return false;
         }
@@ -776,7 +775,7 @@ export namespace physics {
         return true;
     }
 
-    export function createDemoScene(count: number, withBoxes: boolean): PhysicsWorld {
+    export function createDemoScene(count: number, withBoxes: boolean): World {
         // DEMO
         // ====
         const world = createWorld();

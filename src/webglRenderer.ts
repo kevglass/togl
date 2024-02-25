@@ -225,13 +225,13 @@ export const webglRenderer: graphics.Renderer = {
         }
         _drawImage(0, 0, 0, 1, 1, x, y, width, height, rgba, a)
     },
-    drawImage(image: graphics.GameImage, x: number, y: number, width?: number, height?: number): void {
+    drawImage(image: graphics.GameImage, x: number, y: number, width?: number, height?: number, c?: string): void {
         const bitmap = image as WebGLBitmap;
 
         width = width ? Math.floor(width) : image.width;
         height = height ? Math.floor(height) : image.height;
 
-        const col: number = 0xFFFFFF00;
+        const col: number = c ? colToNumber(c) : 0xFFFFFF00;
 
         _drawImage(bitmap.texIndex, bitmap.texX, bitmap.texY, bitmap.width, bitmap.height, x, y, width, height, col, currentContextState.alpha);
     },

@@ -295,8 +295,8 @@ export namespace physics {
         }
     };
 
-    export function atRest(world: PhysicsWorld, forMs: number = 2000): boolean {
-        return !world.dynamicBodies.find(b => b.restingTime < forMs);
+    export function atRest(world: PhysicsWorld, forSeconds: number = 1): boolean {
+        return !world.dynamicBodies.find(b => b.restingTime < forSeconds);
     }
 
     // 2D vector tools

@@ -286,11 +286,17 @@ export namespace physics {
      * @param v The amount to move
      */
     export function moveBody(body: Body, v: Vector2): void {
-        if (body.pinned) {
-            return;
-        }
-        if (body.mass === 0) {
-            return;
+        _moveBody(body, v, true);
+    }
+
+    function _moveBody(body: Body, v: Vector2, force = false): void {
+        if (!force) {
+            if (body.pinned) {
+                return;
+            }
+            if (body.mass === 0) {
+                return;
+            }
         }
 
         // Center
@@ -338,7 +344,7 @@ export namespace physics {
         for (const body of world.dynamicBodies) {
             // Update position/rotation
             body.velocity = addVec2(body.velocity, scaleVec2(body.acceleration, 1 / fps));
-            moveBody(body, scaleVec2(body.velocity, 1 / fps));
+            _moveBody(body, scaleVec2(body.velocity, 1 / fps));
             body.angularVelocity += body.angularAcceleration * 1 / fps;
             rotateBody(body, body.angularVelocity * 1 / fps);
         }
@@ -359,7 +365,7 @@ export namespace physics {
                         } else {
                             vec = scaleVec2(vec, (1 / distance) * diff * joint.rigidity * (other.mass === 0 ? 1 : 0.5));
                         }
-                        moveBody(body, vec);
+                        _moveBody(body, vec);
                         body.velocity = addVec2(body.velocity, scaleVec2(vec, fps));
                     }
                 }
@@ -899,8 +905,8 @@ export namespace physics {
             return false;
         }
 
-        moveBody(s1, scaleVec2(correctionAmount, -s1.mass));
-        moveBody(s2, scaleVec2(correctionAmount, s2.mass));
+        _moveBody(s1, scaleVec2(correctionAmount, -s1.mass));
+        _moveBody(s2, scaleVec2(correctionAmount, s2.mass));
 
         // the direction of collisionInfo is always from s1 to s2
         // but the Mass is inversed, so start scale with s2 and end scale with s1

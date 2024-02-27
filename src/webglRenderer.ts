@@ -168,7 +168,7 @@ export const webglRenderer: graphics.Renderer = {
         return tileset;
     },
 
-    drawTile(tiles: graphics.TileSet, x: number, y: number, tile: number, width?: number, height?: number): void {
+    drawTile(tiles: graphics.TileSet, x: number, y: number, tile: number, width?: number, height?: number, c?: string): void {
         const bitmap = tiles.image as WebGLBitmap;
 
         if (!bitmap.image) {
@@ -181,7 +181,7 @@ export const webglRenderer: graphics.Renderer = {
         const texX = bitmap.texX + (tx * tiles.tileWidth);
         const texY = bitmap.texY + (ty * tiles.tileHeight);
         const texIndex = bitmap.texIndex;
-        const col: number = 0xFFFFFF00;
+        const col: number = c ? colToNumber(c) : 0xFFFFFF00;
 
         _drawImage(texIndex, texX, texY, tiles.tileWidth, tiles.tileHeight, x, y, width ?? tiles.tileWidth, height ?? tiles.tileHeight, col, currentContextState.alpha);
     },

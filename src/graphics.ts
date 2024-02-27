@@ -339,7 +339,7 @@ export namespace graphics {
          * @param width The width to render the tile at in pixels
          * @param height The height to render the tile at in pixels
          */
-        drawTile(tiles: TileSet, x: number, y: number, tile: number, width: number, height: number): void;
+        drawTile(tiles: TileSet, x: number, y: number, tile: number, width: number, height: number, col?: string): void;
 
         /**
          * Draw the outline of a rectangle to the graphics context
@@ -704,8 +704,8 @@ export namespace graphics {
      * @param width The width to render the tile at in pixels
      * @param height The height to render the tile at in pixels
      */
-    export function drawTile(tiles: TileSet, x: number, y: number, tile: number, width: number = tiles.tileWidth, height: number = tiles.tileHeight): void {
-        currentRenderer.drawTile(tiles, x, y, tile, width, height);
+    export function drawTile(tiles: TileSet, x: number, y: number, tile: number, width: number = tiles.tileWidth, height: number = tiles.tileHeight, col?: string): void {
+        currentRenderer.drawTile(tiles, x, y, tile, width, height, col);
     }
 
     /**
@@ -733,8 +733,9 @@ export namespace graphics {
      * @param y The y coordinate to draw the text at
      * @param text The text to draw
      * @param font The font to use when drawing
+     * @param col The color tint to apply 
      */
-    export function drawText(x: number, y: number, text: string, font: GameFont): void {
+    export function drawText(x: number, y: number, text: string, font: GameFont, col?: string): void {
         push();
         translate(x, y - font.baseline);
 
@@ -746,7 +747,7 @@ export namespace graphics {
                 continue;
             }
             const tile = font.chars.indexOf(c);
-            drawTile(font.tiles, x, 0, tile);
+            drawTile(font.tiles, x, 0, tile, font.tiles.tileWidth, font.tiles.tileHeight, col);
             const kern = font.widths.find((a: any) => (a[1] as string).includes(c));
             if (kern) {
                 x += (kern[0] as number);
@@ -799,9 +800,10 @@ export namespace graphics {
      * @param text The text to draw
      * @param y The y coordinate to draw the text at
      * @param font The font to use rendering 
+     * @param col The color tint to apply 
      */
-    export function centerText(text: string, y: number, font: GameFont): void {
-        drawText(Math.floor((width() - textWidth(text, font)) / 2), y, text, font);
+    export function centerText(text: string, y: number, font: GameFont, col?: string): void {
+        drawText(Math.floor((width() - textWidth(text, font)) / 2), y, text, font, col);
     }
 
     function update(): void {

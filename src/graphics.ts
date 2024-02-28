@@ -654,6 +654,8 @@ export namespace graphics {
             def[1] += characterSet[i];
         }
 
+        tw += 1;
+        th += 1;
         canvas.width = 26 * tw;
         canvas.height = Math.ceil(characterSet.length / 26) * th;
         ctx.fillStyle = col;

@@ -36,6 +36,10 @@ export namespace xml {
         const path: any[] = [];
 
         for (const e of elements) {
+            if (e.startsWith("<?")) {
+                // ignore meta tags
+                continue;
+            }
             if (e.startsWith("</")) {
                 current = path.pop();
             } else if (e.startsWith("<")) {

@@ -455,7 +455,7 @@ export namespace physics {
             }
         }
 
-        for (const body of all) {
+        for (const body of allBodies(world)) {
             if (body.mass > 0) {
                 body.restingTime += 1 / fps;
 

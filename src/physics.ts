@@ -120,6 +120,10 @@ export namespace physics {
 
         /** The list of bodies that don't move or rotate */
         staticBodies: Body[];
+
+        /** Disabled bodies */
+        disabledBodies: Body[];
+
         /** The gravity to apply to all dynamic bodies */
         gravity: Vector2;
         /** The amount of damping to apply on angular velocity - 1 = none */
@@ -139,7 +143,41 @@ export namespace physics {
      * @returns The list of bodies in the world
      */
     export function allBodies(world: World): Body[] {
+        return [...world.dynamicBodies, ...world.staticBodies, ...world.disabledBodies];
+    }
+
+    /**
+     * Get a list of all bodies that are enabled in the system
+     * 
+     * @param world The world containing the bodies
+     * @returns The list of bodies in the world
+     */
+    export function enabledBodies(world: World): Body[] {
         return [...world.dynamicBodies, ...world.staticBodies];
+    }
+
+    export function disableBody(world: World, body: Body): void {
+        if (world.dynamicBodies.includes(body)) {
+            world.dynamicBodies.splice(world.dynamicBodies.indexOf(body), 1);
+        }
+        if (world.staticBodies.includes(body)) {
+            world.staticBodies.splice(world.staticBodies.indexOf(body), 1);
+        }
+        if (!world.disabledBodies.includes(body)) {
+            world.disabledBodies.push(body);
+        }
+    }
+
+    export function enableBody(world: World, body: Body): void {
+        if (!body.static && !world.dynamicBodies.includes(body)) {
+            world.dynamicBodies.push(body);
+        }
+        if (body.static && !world.staticBodies.includes(body)) {
+            world.staticBodies.push(body);
+        }
+        if (world.disabledBodies.includes(body)) {
+            world.disabledBodies.splice(world.disabledBodies.indexOf(body), 1);
+        }
     }
 
     /**
@@ -192,6 +230,7 @@ export namespace physics {
         return {
             staticBodies: [],
             dynamicBodies: [],
+            disabledBodies: [],
             gravity: gravity ?? newVec2(0, 100),
             angularDamp: 0.98,
             damp: 0.98,
@@ -340,7 +379,7 @@ export namespace physics {
      * @param world The world to step 
      */
     export function worldStep(fps: number, world: World) {
-        const all = allBodies(world);
+        const all = enabledBodies(world);
 
         for (const body of world.dynamicBodies) {
             // Update position/rotation

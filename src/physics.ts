@@ -146,10 +146,11 @@ export namespace physics {
      * Get the bounds of the world
      * 
      * @param world The world to calculate the bounds of
+     * @param staticOnly Only include static bodies
      * @returns The minimum and maximum coordinates of any body in the world
      */
-    export function getWorldBounds(world: World): { min: Vector2, max: Vector2 } {
-        const bodies = allBodies(world);
+    export function getWorldBounds(world: World, staticOnly = false): { min: Vector2, max: Vector2 } {
+        const bodies = staticOnly ? world.staticBodies : allBodies(world);
 
         if (bodies.length === 0) {
             return {

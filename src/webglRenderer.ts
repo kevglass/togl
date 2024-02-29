@@ -1,5 +1,5 @@
 import potpack from "potpack";
-import { graphics} from "./graphics";
+import { graphics } from "./graphics";
 import { resources } from "./resources";
 
 let canvas: HTMLCanvasElement;
@@ -73,7 +73,7 @@ interface RenderState {
 let pixelatedRendering = false;
 
 export const webglRenderer: graphics.Renderer = {
-    init(c: HTMLCanvasElement, pixelatedRenderingEnabled: boolean, textureSize: number):graphics.Renderer {
+    init(c: HTMLCanvasElement, pixelatedRenderingEnabled: boolean, textureSize: number): graphics.Renderer {
         pixelatedRendering = pixelatedRenderingEnabled;
         textureSizeOverride = textureSize;
         canvas = c;
@@ -181,9 +181,17 @@ export const webglRenderer: graphics.Renderer = {
         const texX = bitmap.texX + (tx * tiles.tileWidth);
         const texY = bitmap.texY + (ty * tiles.tileHeight);
         const texIndex = bitmap.texIndex;
-        const col: number = c ? colToNumber(c) : 0xFFFFFF00;
+        let col: number = c ? colToNumber(c) : 0xFFFFFF00;
 
-        _drawImage(texIndex, texX, texY, tiles.tileWidth, tiles.tileHeight, x, y, width ?? tiles.tileWidth, height ?? tiles.tileHeight, col, currentContextState.alpha);
+        let a = currentContextState.alpha;
+        if ((col % 256)) {
+            a = ((currentContextState.alpha / 255) * ((col % 256) / 255)) * 255;
+            if (a < 255) {
+                col = (col & 0xFFFFFF00) | a;
+            }
+        }
+        
+        _drawImage(texIndex, texX, texY, tiles.tileWidth, tiles.tileHeight, x, y, width ?? tiles.tileWidth, height ?? tiles.tileHeight, col, a);
     },
 
     preRender(): void {
@@ -217,14 +225,16 @@ export const webglRenderer: graphics.Renderer = {
         webglRenderer.fillRect(x, y, 1, height, col);
         webglRenderer.fillRect(x + width - 1, y, 1, height, col);
     },
+
     fillRect(x: number, y: number, width: number, height: number, col: string): void {
         let rgba = colToNumber(col);
-        const a = currentContextState.alpha < 255 ? currentContextState.alpha : (rgba % 256);
+        const a = ((currentContextState.alpha / 255) * ((rgba % 256) / 255)) * 255;
         if (a < 255) {
             rgba = (rgba & 0xFFFFFF00) | a;
         }
         _drawImage(0, 0, 0, 1, 1, x, y, width, height, rgba, a)
     },
+
     drawImage(image: graphics.GameImage, x: number, y: number, width?: number, height?: number, c?: string): void {
         const bitmap = image as WebGLBitmap;
 
@@ -307,7 +317,7 @@ export const webglRenderer: graphics.Renderer = {
         gl.uniform2f(getUniformLoc("uTexSize"), texWidth, texHeight);
         gl.bindTexture(gl.TEXTURE_2D, currentTexture);
         glStartContext();
-        
+
     },
 
     drawToOffscreen(offscreen: graphics.Offscreen): void {
@@ -706,7 +716,7 @@ function newResourceLoaded(): void {
 }
 
 function _initResourceOnLoaded(): void {
-    const textureSize = textureSizeOverride > 0 ? textureSizeOverride :  Math.min(gl.getParameter(gl.MAX_TEXTURE_SIZE), 4096 * 2);
+    const textureSize = textureSizeOverride > 0 ? textureSizeOverride : Math.min(gl.getParameter(gl.MAX_TEXTURE_SIZE), 4096 * 2);
 
     let list = [...bitmaps];
     list.sort((a, b) => a.height > b.height ? -1 : 1);
@@ -719,7 +729,7 @@ function _initResourceOnLoaded(): void {
 
     const nonSmooth = records.filter(r => !r.smooth);
     const smooth = records.filter(r => r.smooth);
-    
+
     let base = 0;
     let textureCount = 0;
 
@@ -739,7 +749,7 @@ function _initResourceOnLoaded(): void {
     const smoothedTextures: number[] = [];
     if (smooth.length > 0) {
         let base = 0;
-        for (let i = 0; i < smooth.length; i ++) {
+        for (let i = 0; i < smooth.length; i++) {
             let { w, h, fill } = potpack(smooth.slice(base, i));
             if (w > textureSize || h > textureSize) {
                 let { w, h, fill } = potpack(smooth.slice(base, i - 1));
@@ -877,8 +887,8 @@ function glCommitContext(): void {
     }
 }
 
-function _drawImage(texIndex: number, texX: number, texY: number, texWidth: number, texHeight: number, 
-                    drawX: number, drawY: number, width: number, height: number, rgba: number, alpha: number) {
+function _drawImage(texIndex: number, texX: number, texY: number, texWidth: number, texHeight: number,
+    drawX: number, drawY: number, width: number, height: number, rgba: number, alpha: number) {
     if (!atlasTextures) {
         return;
     }
@@ -1004,7 +1014,7 @@ function createFrameBuffer(offscreen: WebGLOffscreen): void {
     gl.bindFramebuffer(gl.FRAMEBUFFER, offscreen.fb);
     gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, offscreen.texture, level);
 
-    gl.clearColor(0,0,0,1);
+    gl.clearColor(0, 0, 0, 1);
     gl.clear(gl.COLOR_BUFFER_BIT);
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
     gl.bindTexture(gl.TEXTURE_2D, currentTexture);
@@ -1016,7 +1026,7 @@ function useFrameBuffer(offscreen: WebGLOffscreen): void {
     gl.bindFramebuffer(gl.FRAMEBUFFER, offscreen.fb);
     gl.uniform2f(getUniformLoc("uCanvasSize"), Math.floor(offscreen.width / 2), Math.floor(offscreen.height / 2));
     gl.viewport(0, 0, offscreen.width, offscreen.height);
-    
+
     webglRenderer.push();
     currentContextState = {
         alpha: 255,

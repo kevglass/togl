@@ -61,8 +61,12 @@ export namespace physics {
      * Description of a collision that occurred for the client app
      */
     export interface Collision {
+        /** The ID of the first body in the collision */
         bodyAId: number;
+        /** The ID of the second body in the collision */
         bodyBId: number;
+        /** The penetration depth of the collision */
+        depth: number;
     }
 
     /**
@@ -454,7 +458,8 @@ export namespace physics {
                                 collision = true;
                                 collisions.push({
                                     bodyAId: bodyI.id,
-                                    bodyBId: bodyJ.id
+                                    bodyBId: bodyJ.id,
+                                    depth: collisionInfo.depth
                                 });
                             }
                         }

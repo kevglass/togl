@@ -54,13 +54,17 @@ export namespace sound {
      * Play a sound in this context
      * 
      * @param sound The sound loaded to play
+     * @param volume The volume (0 -> 1) to play at
      */
-    export function playSound(sound: Sound): void {
+    export function playSound(sound: Sound, volume = 1.0): void {
         tryLoadSound(sound).then(() => {
             if (sound.buffer) {
                 const source = audioContext.createBufferSource();
                 source.buffer = sound.buffer;
-                source.connect(audioContext.destination);
+                const gain = audioContext.createGain();
+                source.connect(gain);
+                gain.connect(audioContext.destination);
+                gain.gain.value = volume;
                 source.start(0);
             }
         })
@@ -70,14 +74,18 @@ export namespace sound {
      * Loop a sound in this context (good for music)
      * 
      * @param sound The sound loaded to loop
+     * @param volume The volume (0 -> 1) to play at
      */
-    export function loopSound(sound: Sound): void {
+    export function loopSound(sound: Sound, volume = 1.0): void {
         tryLoadSound(sound).then(() => {
             if (sound.buffer) {
                 const source = audioContext.createBufferSource();
-                source.loop = true;
                 source.buffer = sound.buffer;
-                source.connect(audioContext.destination);
+                source.loop = true;
+                const gain = audioContext.createGain();
+                source.connect(gain);
+                gain.connect(audioContext.destination);
+                gain.gain.value = volume;
                 source.start(0);
             }
         })

@@ -46,7 +46,7 @@ export namespace physics {
     /**
      * A collision that has occurred in the world
      */
-    export interface Collision {
+    interface CollisionDetails {
         /** The depth of the collision */
         depth: number;
         /** The normal of the collision point between the two shapes */
@@ -55,6 +55,14 @@ export namespace physics {
         start: Vector2;
         /** The ending point of the collision */
         end: Vector2;
+    }
+
+    /**
+     * Description of a collision that occurred for the client app
+     */
+    export interface Collision {
+        bodyAId: number;
+        bodyBId: number;
     }
 
     /**
@@ -378,8 +386,9 @@ export namespace physics {
      * in length.
      * @param world The world to step 
      */
-    export function worldStep(fps: number, world: World) {
+    export function worldStep(fps: number, world: World): Collision[] {
         const all = enabledBodies(world);
+        const collisions: Collision[] = [];
 
         for (const body of world.dynamicBodies) {
             // Update position/rotation
@@ -443,6 +452,10 @@ export namespace physics {
                             // Resolve collision
                             if (resolveCollision(world, bodyI, bodyJ, collisionInfo)) {
                                 collision = true;
+                                collisions.push({
+                                    bodyAId: bodyI.id,
+                                    bodyBId: bodyJ.id
+                                });
                             }
                         }
                     }
@@ -477,6 +490,8 @@ export namespace physics {
                 body.averageAngle = body.angle;
             }
         }
+
+        return collisions;
     };
 
     /**
@@ -592,7 +607,7 @@ export namespace physics {
     }
 
 
-    const EmptyCollision = (): Collision => {
+    const EmptyCollision = (): CollisionDetails => {
         return {
             depth: 0,
             normal: newVec2(0, 0),
@@ -602,7 +617,7 @@ export namespace physics {
     };
 
     // Collision info setter
-    function setCollisionInfo(collision: Collision, D: number, N: Vector2, S: Vector2) {
+    function setCollisionInfo(collision: CollisionDetails, D: number, N: Vector2, S: Vector2) {
         collision.depth = D; // depth
         collision.normal.x = N.x; // normal
         collision.normal.y = N.y; // normal
@@ -723,7 +738,7 @@ export namespace physics {
     }
 
     // Find the axis of least penetration between two rects
-    function findAxisLeastPenetration(rect: Body, otherRect: Body, collisionInfo: Collision) {
+    function findAxisLeastPenetration(rect: Body, otherRect: Body, collisionInfo: CollisionDetails) {
         let n,
             i,
             j,
@@ -780,7 +795,7 @@ export namespace physics {
     }
 
     // Test collision between two shapes
-    function testCollision(world: World, c1: Body, c2: Body, collisionInfo: Collision): boolean {
+    function testCollision(world: World, c1: Body, c2: Body, collisionInfo: CollisionDetails): boolean {
         // static bodies don't collide with each other
         if ((c1.mass === 0 && c2.mass === 0)) {
             return false;
@@ -930,7 +945,7 @@ export namespace physics {
         return false;
     }
 
-    function resolveCollision(world: World, s1: Body, s2: Body, collisionInfo: Collision): boolean {
+    function resolveCollision(world: World, s1: Body, s2: Body, collisionInfo: CollisionDetails): boolean {
         if (!s1.mass && !s2.mass) {
             return false;
         }

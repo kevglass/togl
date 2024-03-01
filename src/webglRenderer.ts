@@ -71,14 +71,16 @@ interface RenderState {
 }
 
 let pixelatedRendering = false;
+let texturePaddingSize = 2;
 
 export const webglRenderer: graphics.Renderer = {
-    init(c: HTMLCanvasElement, pixelatedRenderingEnabled: boolean, textureSize: number): graphics.Renderer {
+    init(c: HTMLCanvasElement, pixelatedRenderingEnabled: boolean, textureSize: number, texturePadding: number = 2): graphics.Renderer {
         pixelatedRendering = pixelatedRenderingEnabled;
         textureSizeOverride = textureSize;
         canvas = c;
         transformCanvas = document.createElement("canvas");
         transformCtx = transformCanvas.getContext("2d")!;
+        texturePaddingSize = texturePadding;
 
         c.addEventListener("webglcontextlost", (event) => {
             lostContext();
@@ -190,7 +192,7 @@ export const webglRenderer: graphics.Renderer = {
                 col = (col & 0xFFFFFF00) | a;
             }
         }
-        
+
         _drawImage(texIndex, texX, texY, tiles.tileWidth, tiles.tileHeight, x, y, width ?? tiles.tileWidth, height ?? tiles.tileHeight, col, a);
     },
 
@@ -721,7 +723,7 @@ function _initResourceOnLoaded(): void {
     let list = [...bitmaps];
     list.sort((a, b) => a.height > b.height ? -1 : 1);
 
-    let records = list.map(image => { return { image: image, w: image.width + 2, h: image.height + 2, smooth: image.smooth } });
+    let records = list.map(image => { return { image: image, w: image.width + texturePaddingSize, h: image.height + texturePaddingSize, smooth: image.smooth } });
     const tooBig = records.filter(r => r.w > textureSize || r.h > textureSize);
     tooBig.forEach(r => console.log(r.image.id + " is too big for small textures: " + r.w + "x" + r.h));
 

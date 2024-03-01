@@ -302,9 +302,10 @@ export namespace graphics {
          * attempting to smooth
          * @param textureSize A hint to the max texture size to use. This is useful when you want to reduce
          * the graphics memory requirements.
+         * @param texturePaddingSize A hint to help with texture artifacts. Add some padding around textures.
          * @returns The created renderer
          */
-        init(canvas: HTMLCanvasElement, pixelatedRenderingEnabled: boolean, textureSize?: number): Renderer;
+        init(canvas: HTMLCanvasElement, pixelatedRenderingEnabled: boolean, textureSize?: number, texturePaddingSize?: number): Renderer;
 
         /**
          * Load an image from a given URL
@@ -517,16 +518,17 @@ export namespace graphics {
      * attempting to smooth
      * @param textureSize A hint to the max texture size to use. This is useful when you want to reduce
      * the graphics memory requirements.
+     * @param texturePaddingSize A hint to help with texture artifacts. Add some padding around textures.
      * @returns The created renderer
      */
-    export function init(rendererType: RendererType, pixelatedRenderingEnabled = false, textureSize: number = 0): void {
+    export function init(rendererType: RendererType, pixelatedRenderingEnabled = false, textureSize: number = 0, texturePadding: number = 2): void {
         console.log("TOGL Renderer: " + rendererType + " (pixelated = " + pixelatedRenderingEnabled + ")");
 
         if (rendererType === RendererType.CANVAS) {
             currentRenderer = canvasRenderer.init(canvas, pixelatedRenderingEnabled);
         }
         if (rendererType === RendererType.WEBGL) {
-            currentRenderer = webglRenderer.init(canvas, pixelatedRenderingEnabled, textureSize);
+            currentRenderer = webglRenderer.init(canvas, pixelatedRenderingEnabled, textureSize, texturePadding);
         }
     }
 

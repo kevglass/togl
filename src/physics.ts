@@ -121,6 +121,8 @@ export namespace physics {
         static: boolean;
         /** User data associated with the body  */
         data: any;
+        /** Permeability of the object - anything other than zero will stop collision response */
+        permeability: number;
     }
 
     /**
@@ -442,6 +444,12 @@ export namespace physics {
                         // Test collision
                         let collisionInfo = EmptyCollision();
                         if (testCollision(world, bodyI, bodyJ, collisionInfo)) {
+                            if (bodyJ.permeability > 0) {
+                                bodyI.velocity.x *= 1 - bodyJ.permeability;
+                                bodyI.velocity.y *= 1 - bodyJ.permeability;
+                                bodyI.angularVelocity *= 1 - bodyJ.permeability;
+                                continue;
+                            }
 
                             // Make sure the normal is always from object[i] to object[j]
                             if (dotProduct(collisionInfo.normal, subtractVec2(bodyJ.center, bodyI.center)) < 0) {
@@ -668,7 +676,8 @@ export namespace physics {
             pinned: false,
             restingTime: mass == 0 ? Number.MAX_SAFE_INTEGER : 0,
             data: null,
-            static: mass === 0
+            static: mass === 0,
+            permeability: 0
         };
 
         calcBoundingBox(body);

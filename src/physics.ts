@@ -148,6 +148,8 @@ export namespace physics {
         joints: Joint[];
         /** The number of frames */
         frameCount: number;
+        /** The restriction to apply on joints to get them to stop faster */
+        jointRestriction: number;
     }
 
     /**
@@ -250,7 +252,8 @@ export namespace physics {
             damp: 0.98,
             nextId: 1,
             joints: [],
-            frameCount: 0
+            frameCount: 0,
+            jointRestriction: 1
         }
     };
 
@@ -357,7 +360,7 @@ export namespace physics {
             calcBoundingBox(body);
         }
     };
-    
+
     export function setRotation(body: Body, angle: number): void {
         // Update angle
         body.angle = angle;
@@ -438,15 +441,15 @@ export namespace physics {
                     // apply the dampening
                     if (body.static || other.static) {
                         if (!body.static) {
-                            body.velocity.x *= world.damp;
-                            body.velocity.y *= world.damp;
-                            body.angularVelocity *= world.angularDamp;
+                            body.velocity.x -= ((body.velocity.x * (1 - world.damp)) / fps) * world.jointRestriction;
+                            body.velocity.y -= ((body.velocity.y * (1 - world.damp)) / fps) * world.jointRestriction;
+                            body.angularVelocity -= ((body.angularVelocity * (1 - world.angularDamp)) / fps) * world.jointRestriction;
                         }
 
                         if (!other.static) {
-                            other.velocity.x *= world.damp;
-                            other.velocity.y *= world.damp;
-                            other.angularVelocity *= world.angularDamp;
+                            other.velocity.x -= ((other.velocity.x * (1 - world.damp)) / fps) * world.jointRestriction;
+                            other.velocity.y -= ((other.velocity.y * (1 - world.damp)) / fps) * world.jointRestriction;
+                            other.angularVelocity -= ((other.angularVelocity * (1 - world.angularDamp)) / fps) * world.jointRestriction;
                         }
                     }
                 }

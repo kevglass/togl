@@ -113,8 +113,6 @@ export namespace physics {
         faceNormals: Vector2[]
         /** The vertices of the corners of the rectangle */
         vertices: Vector2[],
-        /** True if this body is pinned in position - still allowed rotation */
-        pinned: boolean;
         /** The amount of time this body has been resting for */
         restingTime: number;
         /** True if this body is static - i.e. it doesn't moved or rotate */
@@ -148,6 +146,8 @@ export namespace physics {
         nextId: number;
         /** The list of joints to be enforced */
         joints: Joint[];
+        /** The number of frames */
+        frameCount: number;
     }
 
     /**
@@ -249,7 +249,8 @@ export namespace physics {
             angularDamp: 0.98,
             damp: 0.98,
             nextId: 1,
-            joints: []
+            joints: [],
+            frameCount: 0
         }
     };
 
@@ -270,25 +271,6 @@ export namespace physics {
             rigidity,
             elasticity
         });
-    };
-
-    /**
-     * Indicate that a body should rotate but not move, i.e. pinning it
-     * 
-     * @param world The world in which the body exists
-     * @param id The ID of the body to adjust
-     * @param mass The mass to give the body
-     */
-    export function allowPinnedRotation(world: World, id: number, mass: number): void {
-        const body = world.staticBodies.find(b => b.id === id);
-        if (body) {
-            body.mass = mass;
-            body.inertia = calculateInertia(body.type, body.mass, body.bounds, body.width, body.height)
-            body.pinned = true;
-            body.static = false;
-            world.staticBodies.splice(world.staticBodies.indexOf(body), 1);
-            world.dynamicBodies.push(body);
-        }
     };
 
     /**
@@ -345,9 +327,6 @@ export namespace physics {
 
     function _moveBody(body: Body, v: Vector2, force = false): void {
         if (!force) {
-            if (body.pinned) {
-                return;
-            }
             if (body.mass === 0) {
                 return;
             }
@@ -361,6 +340,35 @@ export namespace physics {
             for (let i = 4; i--;) {
                 body.vertices[i] = addVec2(body.vertices[i], v);
             }
+            calcBoundingBox(body);
+        }
+    };
+
+
+    export function setCenter(body: Body, v: Vector2): void {
+        // Center
+        body.center = v;
+
+        // Rectangle (move vertex)
+        if (body.type) {
+            for (let i = 4; i--;) {
+                body.vertices[i] = addVec2(body.vertices[i], v);
+            }
+            calcBoundingBox(body);
+        }
+    };
+    
+    export function setRotation(body: Body, angle: number): void {
+        // Update angle
+        body.angle = angle;
+        body.averageAngle = angle;
+
+        // Rectangle (rotate vertex)
+        if (body.type) {
+            for (let i = 4; i--;) {
+                body.vertices[i] = rotateVec2(body.vertices[i], body.center, angle);
+            }
+            computeRectNormals(body);
             calcBoundingBox(body);
         }
     };
@@ -393,8 +401,10 @@ export namespace physics {
      * @param world The world to step 
      */
     export function worldStep(fps: number, world: World): Collision[] {
-        const all = enabledBodies(world);
+        const allEnabled = enabledBodies(world);
+        const all = allBodies(world);
         const collisions: Collision[] = [];
+        world.frameCount++;
 
         for (const body of world.dynamicBodies) {
             // Update position/rotation
@@ -423,6 +433,22 @@ export namespace physics {
                         _moveBody(body, vec);
                         body.velocity = addVec2(body.velocity, scaleVec2(vec, fps));
                     }
+
+                    // if they're held together with no free move then
+                    // apply the dampening
+                    if (body.static || other.static) {
+                        if (!body.static) {
+                            body.velocity.x *= world.damp;
+                            body.velocity.y *= world.damp;
+                            body.angularVelocity *= world.angularDamp;
+                        }
+
+                        if (!other.static) {
+                            other.velocity.x *= world.damp;
+                            other.velocity.y *= world.damp;
+                            other.angularVelocity *= world.angularDamp;
+                        }
+                    }
                 }
             }
         }
@@ -432,13 +458,13 @@ export namespace physics {
             let collision = false;
 
             for (let i = world.dynamicBodies.length; i--;) {
-                for (let j = all.length; j-- > i;) {
+                for (let j = allEnabled.length; j-- > i;) {
                     if (i === j) {
                         continue;
                     }
                     // Test bounds
                     const bodyI = world.dynamicBodies[i];
-                    const bodyJ = all[j];
+                    const bodyJ = allEnabled[j];
 
                     if (boundTest(bodyI, bodyJ)) {
                         // Test collision
@@ -481,7 +507,7 @@ export namespace physics {
             }
         }
 
-        for (const body of allBodies(world)) {
+        for (const body of all) {
             if (body.mass > 0) {
                 body.restingTime += 1 / fps;
 
@@ -673,7 +699,6 @@ export namespace physics {
                 newVec2(center.x - width / 2, center.y + height / 2)
             ],
             boundingBox: newVec2(0, 0),
-            pinned: false,
             restingTime: mass == 0 ? Number.MAX_SAFE_INTEGER : 0,
             data: null,
             static: mass === 0,
@@ -1048,11 +1073,6 @@ export namespace physics {
             s1.velocity.x *= world.damp;
             s1.velocity.y *= world.damp;
             s1.angularVelocity *= world.angularDamp;
-
-            if (s1.pinned) {
-                s1.velocity.x = 0;
-                s1.velocity.y = 0;
-            }
         }
 
         if (!s2.static) {
@@ -1061,11 +1081,6 @@ export namespace physics {
             s2.velocity.x *= world.damp;
             s2.velocity.y *= world.damp;
             s2.angularVelocity *= world.angularDamp;
-
-            if (s2.pinned) {
-                s2.velocity.x = 0;
-                s2.velocity.y = 0;
-            }
         }
 
         return true;

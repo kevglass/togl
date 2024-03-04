@@ -91,7 +91,7 @@ export const webglRenderer: graphics.Renderer = {
             recoverContext();
         }, false);
 
-        gl = c.getContext('webgl', { powerPreference: "high-performance" }) as WebGLRenderingContext;
+        gl = c.getContext('experimental-webgl', { powerPreference: "high-performance" }) as WebGLRenderingContext;
         initGlResources();
         return webglRenderer;
     },

@@ -1,5 +1,7 @@
 import { resources } from "./resources";
 
+const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+
 /**
  * The sound namespace contains wrappers for loading and playing
  * sounds through the AudioContext API.

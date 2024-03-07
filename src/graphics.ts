@@ -47,8 +47,11 @@ export namespace graphics {
     const canvas = document.getElementById("gamecanvas") as HTMLCanvasElement;
     let eventListener: Game | undefined;
     let mouseDown = false;
+    let scaling = false;
+    let scaleStartDist = 0;
+    let wasZooming = false
 
-    /**
+    /** 
      * The width assigned to a set of characters in a font
      */
     export type FontCharacterWidth = [number, string];
@@ -185,6 +188,8 @@ export namespace graphics {
          * assumptions about the graphics being used.
          */
         render(): void;
+
+        zoomChanged?(delta: number): void;
     }
 
     document.addEventListener('contextmenu', event => {
@@ -195,12 +200,30 @@ export namespace graphics {
         event.preventDefault();
     });
 
+    canvas.addEventListener("wheel", (event) => {
+        sound.resumeAudioOnInput();
+
+        if (eventListener?.zoomChanged) {
+            eventListener?.zoomChanged(event.deltaY);
+        }
+
+        event.stopPropagation();
+        event.preventDefault();
+    });
+
     canvas.addEventListener("touchstart", (event) => {
         sound.resumeAudioOnInput();
         canvas.focus();
 
-        for (const touch of event.changedTouches) {
-            eventListener?.mouseDown(touch.clientX, touch.clientY, touch.identifier);
+        if (event.touches.length === 2) {
+            scaling = true;
+            scaleStartDist = Math.hypot(
+                event.touches[0].pageX - event.touches[1].pageX,
+                event.touches[0].pageY - event.touches[1].pageY);
+        } else {
+            for (const touch of event.changedTouches) {
+                eventListener?.mouseDown(touch.clientX, touch.clientY, touch.identifier);
+            }
         }
 
         event.stopPropagation();
@@ -220,8 +243,16 @@ export namespace graphics {
     canvas.addEventListener("touchend", (event) => {
         sound.resumeAudioOnInput();
 
-        for (const touch of event.changedTouches) {
-            eventListener?.mouseUp(touch.clientX, touch.clientY, touch.identifier);
+        if (scaling) {
+            scaling = false;
+            wasZooming = true;
+        } else {
+            for (const touch of event.changedTouches) {
+                eventListener?.mouseUp(touch.clientX, touch.clientY, touch.identifier);
+            }
+        }
+        if (event.touches.length === 0) {
+            wasZooming = false;
         }
 
         event.stopPropagation();
@@ -231,8 +262,18 @@ export namespace graphics {
     canvas.addEventListener("touchmove", (event) => {
         sound.resumeAudioOnInput();
 
-        for (const touch of event.changedTouches) {
-            eventListener?.mouseDrag(touch.clientX, touch.clientY, touch.identifier);
+        if (scaling) {
+            const dist = Math.hypot(
+                event.touches[0].pageX - event.touches[1].pageX,
+                event.touches[0].pageY - event.touches[1].pageY);
+            if (eventListener?.zoomChanged) {
+                eventListener?.zoomChanged(scaleStartDist - dist);
+                scaleStartDist = dist;
+            }
+        } else {
+            for (const touch of event.changedTouches) {
+                eventListener?.mouseDrag(touch.clientX, touch.clientY, touch.identifier);
+            }
         }
 
         event.stopPropagation();

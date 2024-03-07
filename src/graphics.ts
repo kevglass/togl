@@ -2,6 +2,7 @@ import { canvasRenderer } from "./canvasRenderer";
 import { resources } from "./resources";
 import { sound } from "./sound";
 import { webglRenderer } from "./webglRenderer";
+import { translate as tr } from "./translate";
 
 // This is a very brute force simple renderer. It's just blitting images and text to 
 // a canvas. It's wrapped with a view to replacing it with something decent
@@ -781,6 +782,8 @@ export namespace graphics {
      * @param col The color tint to apply 
      */
     export function drawText(x: number, y: number, text: string, font: GameFont, col?: string): void {
+        text = tr.translate(text);
+
         push();
         translate(x, y - font.baseline);
 
@@ -823,6 +826,8 @@ export namespace graphics {
      * @returns The width in pixels of the text provided
      */
     export function textWidth(text: string, font: GameFont): number {
+        text = tr.translate(text);
+
         let x = 0;
         for (let i = 0; i < text.length; i++) {
             const c = text.charAt(i);

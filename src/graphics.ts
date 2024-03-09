@@ -50,7 +50,6 @@ export namespace graphics {
     let mouseDown = false;
     let scaling = false;
     let scaleStartDist = 0;
-    let wasZooming = false
 
     /** 
      * The width assigned to a set of characters in a font
@@ -205,7 +204,7 @@ export namespace graphics {
         sound.resumeAudioOnInput();
 
         if (eventListener?.zoomChanged) {
-            eventListener?.zoomChanged(event.deltaY);
+            eventListener?.zoomChanged(-event.deltaY);
         }
 
         event.stopPropagation();
@@ -246,14 +245,10 @@ export namespace graphics {
 
         if (scaling) {
             scaling = false;
-            wasZooming = true;
         } else {
             for (const touch of event.changedTouches) {
                 eventListener?.mouseUp(touch.clientX, touch.clientY, touch.identifier);
             }
-        }
-        if (event.touches.length === 0) {
-            wasZooming = false;
         }
 
         event.stopPropagation();

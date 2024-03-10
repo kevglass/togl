@@ -1176,6 +1176,8 @@ export namespace physics {
         height: number;
         /** True if the table is enclosed. Enclosed tables cause pucks to bounce off the edge. Non-enclosed tables let pucks fall off the edge */
         enclosed: boolean;
+        /** The efficiency (elastic) of the collisions */
+        collisionEfficiency: number;
     }
 
     /**
@@ -1215,16 +1217,18 @@ export namespace physics {
      * @param height The height of the table 
      * @param enclosed True if the table is enclosed. Enclosed tables make pucks bounce off the edge. Non-enclosed
      * tables let pucks fall of the edge
+     * @param collisionEfficiency Option efficiency of elastic collisions
      * @returns A newly created simulation of pucks on a table
      */
-    export function createTable(x: number, y: number, width: number, height: number, enclosed: boolean): Table {
+    export function createTable(x: number, y: number, width: number, height: number, enclosed: boolean, collisionEfficiency?: number): Table {
         return {
             x, y, width, height,
             pucks: [],
             pucksRemoved: [],
             friction: 0.2,
             nextId: 1,
-            enclosed
+            enclosed,
+            collisionEfficiency: collisionEfficiency ?? 1
         };
     }
 
@@ -1290,8 +1294,6 @@ export namespace physics {
             }
         }
 
-        const efficiency = 1;
-
         // 10 iterations for collision resolution
         for (let i=0;i<10;i++) {
             for (const puckA of table.pucks) {
@@ -1327,8 +1329,8 @@ export namespace physics {
                         const dpNormA = dotProduct(normal, puckA.velocity);
                         const dpNormB = dotProduct(normal, puckB.velocity);
 
-                        const m1 = efficiency * ((dpNormA * (puckA.mass - puckB.mass)) + (2.0 * puckB.mass * dpNormB)) / (puckA.mass + puckB.mass);
-                        const m2 = efficiency * ((dpNormB * (puckB.mass - puckA.mass)) + (2.0 * puckA.mass * dpNormA)) / (puckA.mass + puckB.mass);
+                        const m1 = table.collisionEfficiency * ((dpNormA * (puckA.mass - puckB.mass)) + (2.0 * puckB.mass * dpNormB)) / (puckA.mass + puckB.mass);
+                        const m2 = table.collisionEfficiency * ((dpNormB * (puckB.mass - puckA.mass)) + (2.0 * puckA.mass * dpNormA)) / (puckA.mass + puckB.mass);
     
                         // Update puck velocities
                         puckA.velocity.x = (tangent.x * dpTanA) + (normal.x * m1);

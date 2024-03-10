@@ -131,7 +131,7 @@ export namespace physics {
         restingTime: number;
     }
 
-    type Body = StaticRigidBody | DynamicRigidBody
+    export type Body = StaticRigidBody | DynamicRigidBody
 
     /**
      * The world in which the physics engine runs
@@ -553,7 +553,7 @@ export namespace physics {
         }
 
         return collisions;
-    };
+    }
 
     /**
      * Check if the physics system is at rest.
@@ -694,8 +694,7 @@ export namespace physics {
     }
 
     // New shape
-    function createRigidBody(world: World, center: Vector2, mass: number, friction: number, restitution: number, type: number, bounds: number, width = 0, height = 0): Body {
-
+    function createRigidBody(world: World, center: Vector2, mass: number, friction: number, restitution: number, type: number, bounds: number, width = 0, height = 0, data?: any): Body {
         // Prepare data for Rectangle
         let vertices: Vector2[], faceNormals: Vector2[]
         if (type === ShapeType.RECTANGLE)
@@ -710,6 +709,7 @@ export namespace physics {
         } else {
             vertices = []
             faceNormals = []
+        }
 
         const staticBody: StaticRigidBody = {
             id: world.nextId++,

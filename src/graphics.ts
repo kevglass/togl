@@ -328,6 +328,7 @@ export namespace graphics {
 
         if (!resourceLoadedReported && resources.resourcesRequested === 0) {
             resourceLoadedReported = true;
+            currentRenderer.initResourceOnLoaded();
             eventListener?.resourcesLoaded();
         }
         requestAnimationFrame(() => { loop(game) });

@@ -480,12 +480,18 @@ export namespace physics {
             let collision = false;
 
             for (let i = world.dynamicBodies.length; i--;) {
+
+                // Only moving objects can collide if they didn't last worldStep
+                const bodyI = world.dynamicBodies[i];
+                if (!bodyI.velocity) {
+                    continue
+                }
+
                 for (let j = allEnabled.length; j-- > i;) {
                     if (i === j) {
                         continue;
                     }
                     // Test bounds
-                    const bodyI = world.dynamicBodies[i];
                     const bodyJ = allEnabled[j];
 
                     if (boundTest(bodyI, bodyJ)) {

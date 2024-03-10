@@ -287,13 +287,13 @@ export namespace physics {
      * @param restitution The friction to apply during collisions with the new body
      * @returns The newly created body
      */
-    export function createCircle(world: World, center: Vector2, radius: number, mass: number, friction: number, restitution: number): Body {
+    export function createCircle(world: World, center: Vector2, radius: number, mass: number, friction: number, restitution: number, data?: any): Body {
         // the original code only works well with whole number static objects
         center.x = Math.floor(center.x);
         center.y = Math.floor(center.y);
         radius = Math.floor(radius);
 
-        return createRigidBody(world, center, mass, friction, restitution, 0, radius);
+        return createRigidBody(world, center, mass, friction, restitution, 0, radius, undefined, undefined, data);
     };
 
     /**
@@ -308,14 +308,14 @@ export namespace physics {
      * @param restitution The friction to apply during collisions with the new body
      * @returns The newly created body
      */
-    export function createRectangle(world: World, center: Vector2, width: number, height: number, mass: number, friction: number, restitution: number): Body {
+    export function createRectangle(world: World, center: Vector2, width: number, height: number, mass: number, friction: number, restitution: number, data?: any): Body {
         // the original code only works well with whole number static objects
         center.x = Math.floor(center.x);
         center.y = Math.floor(center.y);
         width = Math.floor(width);
         height = Math.floor(height);
 
-        return createRigidBody(world, center, mass, friction, restitution, 1, Math.hypot(width, height) / 2, width, height);
+        return createRigidBody(world, center, mass, friction, restitution, 1, Math.hypot(width, height) / 2, width, height, data);
     };
 
     /**
@@ -675,7 +675,7 @@ export namespace physics {
     }
 
     // New shape
-    function createRigidBody(world: World, center: Vector2, mass: number, friction: number, restitution: number, type: number, bounds: number, width = 0, height = 0): Body {
+    function createRigidBody(world: World, center: Vector2, mass: number, friction: number, restitution: number, type: number, bounds: number, width = 0, height = 0, data?: any): Body {
         const body: Body = {
             id: world.nextId++,
             type: type, // 0 circle / 1 rectangle
@@ -703,7 +703,7 @@ export namespace physics {
             ],
             boundingBox: newVec2(0, 0),
             restingTime: mass == 0 ? Number.MAX_SAFE_INTEGER : 0,
-            data: null,
+            data: data ?? null,
             static: mass === 0,
             permeability: 0
         };
@@ -1206,8 +1206,8 @@ export namespace physics {
      * @param radius The radius of the circular puck
      * @returns The newly create puck
      */
-    export function createPuck(table: Table, x: number, y: number, radius: number): Puck {
-        return { id: table.nextId++, position: newVec2(x, y), radius, velocity: newVec2(0, 0), mass: radius * 10, data: {}};
+    export function createPuck(table: Table, x: number, y: number, radius: number, data?: any): Puck {
+        return { id: table.nextId++, position: newVec2(x, y), radius, velocity: newVec2(0, 0), mass: radius * 10, data: data ?? null};
     }
 
     /**

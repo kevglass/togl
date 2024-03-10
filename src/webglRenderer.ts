@@ -93,7 +93,6 @@ export const webglRenderer: graphics.Renderer = {
 
         gl = c.getContext('experimental-webgl', { powerPreference: "high-performance" }) as WebGLRenderingContext;
         initGlResources();
-        _initResourceOnLoaded();
         return webglRenderer;
     },
     loadImage(url: string, track: boolean, id?: string, smooth?: boolean): graphics.GameImage {

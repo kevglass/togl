@@ -1121,45 +1121,142 @@ export namespace physics {
 
 
     /// A simple puck table for lighter physics
+
+    /**
+     * A more simple physics model based on a set of pucks on a table. Theres probably 
+     * quite a few games that could use this limited environment
+     */
     export interface Table {
+        /** The collection of pucks being simulated */
         pucks: Puck[];
+        /** The pucks that have fallen off the table if thats allowed */
+        pucksRemoved: Puck[];
+        /** The friction to apply to the pucks ont he table */
         friction: number;
+        /** The next ID to assign */
         nextId: number;
+        /** The x position of the top left table in the world */
+        x: number;
+        /** The y position of the top left of the table in the world */
+        y: number;
+        /** The width of the table */
+        width: number;
+        /** The height of the table */
+        height: number;
+        /** True if the table is enclosed. Enclosed tables cause pucks to bounce off the edge. Non-enclosed tables let pucks fall off the edge */
+        enclosed: boolean;
     }
 
+    /**
+     * A single circular puck on the table
+     */
     export interface Puck {
+        /** The ID of the puck on the table */
         id: number;
+        /** The position of the puck */
         position: Vector2;
+        /** The velocity of the puck */
         velocity: Vector2;
+        /** The radius of the puck */
         radius: number;
+        /** The mass simulated for this puck */
         mass: number;
+        /** User data provided for the puck */
+        data: any;
     }
 
+    /**
+     * Description of a collision happening on the table
+     */
     export interface PuckCollision {
+        /** The ID of the first puck that collided */
         puckIdA: number;
+        /** The ID of the second puck that collided */
         puckIdB: number;
     }
 
-    export function createTable(): Table {
+    /**
+     * Create a table to simulate a collection of pucks bouncing  around
+     * 
+     * @param x The x coordinate of the top left of the table
+     * @param y The y coordinate of the top left of the table
+     * @param width The width of the table 
+     * @param height The height of the table 
+     * @param enclosed True if the table is enclosed. Enclosed tables make pucks bounce off the edge. Non-enclosed
+     * tables let pucks fall of the edge
+     * @returns A newly created simulation of pucks on a table
+     */
+    export function createTable(x: number, y: number, width: number, height: number, enclosed: boolean): Table {
         return {
+            x, y, width, height,
             pucks: [],
-            friction: 0.01,
+            pucksRemoved: [],
+            friction: 0.2,
             nextId: 1,
+            enclosed
         };
     }
 
+    /**
+     * Create a puck to be simulated on the table
+     * 
+     * @param table The table simulation the new puck will be part of
+     * @param x The x coordinate of the position of the puck
+     * @param y The y coordinate of the position of the puck
+     * @param radius The radius of the circular puck
+     * @returns The newly create puck
+     */
     export function createPuck(table: Table, x: number, y: number, radius: number): Puck {
-        return { id: table.nextId++, position: newVec2(x, y), radius, velocity: newVec2(0, 0), mass: radius * 10};
+        return { id: table.nextId++, position: newVec2(x, y), radius, velocity: newVec2(0, 0), mass: radius * 10, data: {}};
     }
 
-    export function tableStep(fps: number, table: Table): PuckCollision[] {
+    /**
+     * Step the simulation of the pucks and table
+     * 
+     * @param fps The frames per second to run the simulation at, higher FPS mean better resolution on the collisions
+     * @param table The table being simulated
+     * @returns Collisions and puck removals that happened in this step
+     */
+    export function tableStep(fps: number, table: Table): { collisions: PuckCollision[], pucksRemoved: number[] } {
         const collisions: PuckCollision[] = [];
+        const pucksRemoved: number[] = [];
 
-        for (const puck of table.pucks) {
+        // move all the pucks
+        for (const puck of [...table.pucks]) {
+            // apply global friction
             puck.velocity.x -= (puck.velocity.x * table.friction) / fps;
             puck.velocity.y -= (puck.velocity.y * table.friction) / fps;
             puck.position.x += puck.velocity.x / fps;
             puck.position.y += puck.velocity.y / fps;
+
+            // deal with bouncing off table edges
+            if (table.enclosed) {
+                if (puck.position.x < table.x + puck.radius && puck.velocity.x < 0) {
+                    puck.velocity.x = -puck.velocity.x;
+                    puck.position.x = table.x + puck.radius;
+                }
+                if (puck.position.y < table.y + puck.radius && puck.velocity.y < 0) {
+                    puck.velocity.y = -puck.velocity.y;
+                    puck.position.y = table.y + puck.radius;
+                }
+                if (puck.position.x > table.x + table.width - puck.radius && puck.velocity.x > 0) {
+                    puck.velocity.x = -puck.velocity.x;
+                    puck.position.x = table.x + table.width - puck.radius;
+                }
+                if (puck.position.y > table.y + table.height - puck.radius && puck.velocity.y > 0) {
+                    puck.velocity.y = -puck.velocity.y;
+                    puck.position.y = table.y + table.height - puck.radius;
+                }
+            } else {
+                if ((puck.position.x < table.x - puck.radius) || 
+                    (puck.position.x > table.x + table.width + puck.radius) ||
+                    (puck.position.y < table.y - puck.radius) ||
+                    (puck.position.y > table.y + table.height + puck.radius)) {
+                    table.pucks.splice(table.pucks.indexOf(puck), 1);
+                    table.pucksRemoved.push(puck);
+                    pucksRemoved.push(puck.id);
+                }
+            }
         }
 
         const efficiency = 1;
@@ -1173,8 +1270,8 @@ export namespace physics {
                     }
 
                     // test for collision
-                    const nx = puckB.position.x - puckA.position.x;
-                    const ny = puckB.position.y - puckA.position.y;
+                    const nx = puckA.position.x - puckB.position.x;
+                    const ny = puckA.position.y - puckB.position.y;
                     const len2 = (nx * nx) + (ny * ny);
                     const rad = (puckB.radius + puckA.radius);
                     const rad2 = rad * rad;
@@ -1217,6 +1314,6 @@ export namespace physics {
             }
         }
 
-        return collisions;
+        return { collisions, pucksRemoved };
     }
 }

@@ -1118,4 +1118,105 @@ export namespace physics {
 
         return world;
     }
+
+
+    /// A simple puck table for lighter physics
+    export interface Table {
+        pucks: Puck[];
+        friction: number;
+        nextId: number;
+    }
+
+    export interface Puck {
+        id: number;
+        position: Vector2;
+        velocity: Vector2;
+        radius: number;
+        mass: number;
+    }
+
+    export interface PuckCollision {
+        puckIdA: number;
+        puckIdB: number;
+    }
+
+    export function createTable(): Table {
+        return {
+            pucks: [],
+            friction: 0.01,
+            nextId: 1,
+        };
+    }
+
+    export function createPuck(table: Table, x: number, y: number, radius: number): Puck {
+        return { id: table.nextId++, position: newVec2(x, y), radius, velocity: newVec2(0, 0), mass: radius * 10};
+    }
+
+    export function tableStep(fps: number, table: Table): PuckCollision[] {
+        const collisions: PuckCollision[] = [];
+
+        for (const puck of table.pucks) {
+            puck.velocity.x -= (puck.velocity.x * table.friction) / fps;
+            puck.velocity.y -= (puck.velocity.y * table.friction) / fps;
+            puck.position.x += puck.velocity.x / fps;
+            puck.position.y += puck.velocity.y / fps;
+        }
+
+        const efficiency = 1;
+
+        // 10 iterations for collision resolution
+        for (let i=0;i<10;i++) {
+            for (const puckA of table.pucks) {
+                for (const puckB of table.pucks) {
+                    if (puckA === puckB) {
+                        continue;
+                    }
+
+                    // test for collision
+                    const nx = puckB.position.x - puckA.position.x;
+                    const ny = puckB.position.y - puckA.position.y;
+                    const len2 = (nx * nx) + (ny * ny);
+                    const rad = (puckB.radius + puckA.radius);
+                    const rad2 = rad * rad;
+                    if (rad2 > len2) {
+                        // close enough for collision
+                        const len = Math.sqrt(len2);
+
+                        // move out of collision
+                        const normal = scaleVec2(newVec2(nx, ny), 1 / len);
+                        const penetration = len - rad;
+                        const penOver2 = penetration / 2;
+                        puckA.position.x -= penOver2 * normal.x;
+                        puckA.position.y -= penOver2 * normal.y;
+                        puckB.position.x += penOver2 * normal.x;
+                        puckB.position.y += penOver2 * normal.y;
+
+                        const tangent = newVec2(-normal.y, normal.x);
+
+                        // change velocity of pucks based on the collision
+                        const dpTanA = dotProduct(tangent, puckA.velocity);
+                        const dpTanB = dotProduct(tangent, puckB.velocity);
+                        const dpNormA = dotProduct(normal, puckA.velocity);
+                        const dpNormB = dotProduct(normal, puckB.velocity);
+
+                        const m1 = efficiency * ((dpNormA * (puckA.mass - puckB.mass)) + (2.0 * puckB.mass * dpNormB)) / (puckA.mass + puckB.mass);
+                        const m2 = efficiency * ((dpNormB * (puckB.mass - puckA.mass)) + (2.0 * puckA.mass * dpNormA)) / (puckA.mass + puckB.mass);
+    
+                        // Update puck velocities
+                        puckA.velocity.x = (tangent.x * dpTanA) + (normal.x * m1);
+                        puckA.velocity.y = (tangent.y * dpTanA) + (normal.y * m1);
+                        puckB.velocity.x = (tangent.x * dpTanB) + (normal.x * m2)
+                        puckB.velocity.y = (tangent.y * dpTanB) + (normal.y * m2);
+
+                        collisions.push({
+                            puckIdA: puckA.id,
+                            puckIdB: puckB.id
+                        });
+                    }
+                }
+            }
+        }
+
+        return collisions;
+    }
 }

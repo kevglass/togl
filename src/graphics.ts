@@ -50,6 +50,7 @@ export namespace graphics {
     let mouseDown = false;
     let scaling = false;
     let scaleStartDist = 0;
+    let resourceLoadedReported = false;
 
     /** 
      * The width assigned to a set of characters in a font
@@ -323,6 +324,11 @@ export namespace graphics {
                 frameCount = 0;
                 lastFPS = Date.now();
             }
+        }
+
+        if (!resourceLoadedReported && resources.resourcesRequested === 0) {
+            resourceLoadedReported = true;
+            eventListener?.resourcesLoaded();
         }
         requestAnimationFrame(() => { loop(game) });
     }

@@ -11,8 +11,8 @@ export namespace resources {
         resourcesLoaded(): void;
     }
 
-    let resourcesRequested = 0;
-    let resourcesLoaded = 0;
+    export let resourcesRequested = 0;
+    export let resourcesLoaded = 0;
     let resourceListeners: ResourceListener[] = [];
 
     /**

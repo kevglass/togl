@@ -697,8 +697,7 @@ export namespace physics {
     function createRigidBody(world: World, center: Vector2, mass: number, friction: number, restitution: number, type: number, bounds: number, width = 0, height = 0, data?: any): Body {
         // Prepare data for Rectangle
         let vertices: Vector2[], faceNormals: Vector2[]
-        if (type === ShapeType.RECTANGLE)
-        {
+        if (type === ShapeType.RECTANGLE) {
             vertices = [ // Vertex: 0: TopLeft, 1: TopRight, 2: BottomRight, 3: BottomLeft (rectangles)
                 newVec2(center.x - width / 2, center.y - height / 2),
                 newVec2(center.x + width / 2, center.y - height / 2),
@@ -1178,6 +1177,12 @@ export namespace physics {
         enclosed: boolean;
         /** The efficiency (elastic) of the collisions */
         collisionEfficiency: number;
+        /** horizontal gap in top and bottom edge */
+        horizontalGap: number;
+        /** vertical gap in left and right edge */
+        verticalGap: number;
+        /** True if the pucks are at rest */
+        atRest: boolean;
     }
 
     /**
@@ -1196,6 +1201,8 @@ export namespace physics {
         mass: number;
         /** User data provided for the puck */
         data: any;
+        /** True if the puck can pass through any edge gap */
+        canUseGap: boolean;
     }
 
     /**
@@ -1228,7 +1235,10 @@ export namespace physics {
             friction: 0.2,
             nextId: 1,
             enclosed,
-            collisionEfficiency: collisionEfficiency ?? 1
+            collisionEfficiency: collisionEfficiency ?? 1,
+            horizontalGap: 0,
+            verticalGap: 0,
+            atRest: true
         };
     }
 
@@ -1242,7 +1252,7 @@ export namespace physics {
      * @returns The newly create puck
      */
     export function createPuck(table: Table, x: number, y: number, radius: number, data?: any): Puck {
-        return { id: table.nextId++, position: newVec2(x, y), radius, velocity: newVec2(0, 0), mass: radius * 10, data: data ?? null};
+        return { id: table.nextId++, position: newVec2(x, y), radius, velocity: newVec2(0, 0), mass: radius * 10, data: data ?? null, canUseGap: false };
     }
 
     /**
@@ -1256,46 +1266,72 @@ export namespace physics {
         const collisions: PuckCollision[] = [];
         const pucksRemoved: number[] = [];
 
+        const restTolerance = 0.1;
+        table.atRest = true;
+
         // move all the pucks
         for (const puck of [...table.pucks]) {
             // apply global friction
+            if (Math.abs(puck.velocity.x) + Math.abs(puck.velocity.y) < restTolerance) {
+                puck.velocity.x = 0;
+                puck.velocity.y = 0;
+                continue;
+            }
+
+            table.atRest = false;
             puck.velocity.x -= (puck.velocity.x * table.friction) / fps;
             puck.velocity.y -= (puck.velocity.y * table.friction) / fps;
             puck.position.x += puck.velocity.x / fps;
             puck.position.y += puck.velocity.y / fps;
 
-            // deal with bouncing off table edges
-            if (table.enclosed) {
-                if (puck.position.x < table.x + puck.radius && puck.velocity.x < 0) {
-                    puck.velocity.x = -puck.velocity.x;
-                    puck.position.x = table.x + puck.radius;
-                }
-                if (puck.position.y < table.y + puck.radius && puck.velocity.y < 0) {
-                    puck.velocity.y = -puck.velocity.y;
-                    puck.position.y = table.y + puck.radius;
-                }
-                if (puck.position.x > table.x + table.width - puck.radius && puck.velocity.x > 0) {
-                    puck.velocity.x = -puck.velocity.x;
-                    puck.position.x = table.x + table.width - puck.radius;
-                }
-                if (puck.position.y > table.y + table.height - puck.radius && puck.velocity.y > 0) {
-                    puck.velocity.y = -puck.velocity.y;
-                    puck.position.y = table.y + table.height - puck.radius;
-                }
-            } else {
-                if ((puck.position.x < table.x - puck.radius) || 
-                    (puck.position.x > table.x + table.width + puck.radius) ||
-                    (puck.position.y < table.y - puck.radius) ||
-                    (puck.position.y > table.y + table.height + puck.radius)) {
-                    table.pucks.splice(table.pucks.indexOf(puck), 1);
-                    table.pucksRemoved.push(puck);
-                    pucksRemoved.push(puck.id);
+            // distance from gap
+            const dx = Math.abs((table.x + (table.width / 2)) - puck.position.x);
+            const dy = Math.abs((table.y + (table.height / 2)) - puck.position.y);
+
+            if (!puck.canUseGap || dx > table.horizontalGap && dy > table.verticalGap) {
+                // deal with bouncing off table edges
+                if (table.enclosed) {
+                    let collision = false;
+                    if (puck.position.x < table.x + puck.radius && puck.velocity.x < 0) {
+                        puck.velocity.x = -puck.velocity.x;
+                        puck.position.x = table.x + puck.radius;
+                        collision = true;
+                    }
+                    if (puck.position.y < table.y + puck.radius && puck.velocity.y < 0) {
+                        puck.velocity.y = -puck.velocity.y;
+                        puck.position.y = table.y + puck.radius;
+                        collision = true;
+                    }
+                    if (puck.position.x > table.x + table.width - puck.radius && puck.velocity.x > 0) {
+                        puck.velocity.x = -puck.velocity.x;
+                        puck.position.x = table.x + table.width - puck.radius;
+                        collision = true;
+                    }
+                    if (puck.position.y > table.y + table.height - puck.radius && puck.velocity.y > 0) {
+                        puck.velocity.y = -puck.velocity.y;
+                        puck.position.y = table.y + table.height - puck.radius;
+                        collision = true;
+                    }
+
+                    if (collision) {
+                        puck.velocity.x -= ((1 - table.collisionEfficiency) / fps) * puck.velocity.x;
+                        puck.velocity.y -= ((1 - table.collisionEfficiency) / fps) * puck.velocity.y;
+                    }
+                } else {
+                    if ((puck.position.x < table.x - puck.radius) ||
+                        (puck.position.x > table.x + table.width + puck.radius) ||
+                        (puck.position.y < table.y - puck.radius) ||
+                        (puck.position.y > table.y + table.height + puck.radius)) {
+                        table.pucks.splice(table.pucks.indexOf(puck), 1);
+                        table.pucksRemoved.push(puck);
+                        pucksRemoved.push(puck.id);
+                    }
                 }
             }
         }
 
         // 10 iterations for collision resolution
-        for (let i=0;i<10;i++) {
+        for (let i = 0; i < 10; i++) {
             for (const puckA of table.pucks) {
                 for (const puckB of table.pucks) {
                     if (puckA === puckB) {
@@ -1303,8 +1339,8 @@ export namespace physics {
                     }
 
                     // test for collision
-                    const nx = puckA.position.x - puckB.position.x;
-                    const ny = puckA.position.y - puckB.position.y;
+                    const nx = puckB.position.x - puckA.position.x;
+                    const ny = puckB.position.y - puckA.position.y;
                     const len2 = (nx * nx) + (ny * ny);
                     const rad = (puckB.radius + puckA.radius);
                     const rad2 = rad * rad;
@@ -1314,7 +1350,7 @@ export namespace physics {
 
                         // move out of collision
                         const normal = scaleVec2(newVec2(nx, ny), 1 / len);
-                        const penetration = len - rad;
+                        const penetration = rad - len;
                         const penOver2 = penetration / 2;
                         puckA.position.x -= penOver2 * normal.x;
                         puckA.position.y -= penOver2 * normal.y;
@@ -1329,9 +1365,11 @@ export namespace physics {
                         const dpNormA = dotProduct(normal, puckA.velocity);
                         const dpNormB = dotProduct(normal, puckB.velocity);
 
-                        const m1 = table.collisionEfficiency * ((dpNormA * (puckA.mass - puckB.mass)) + (2.0 * puckB.mass * dpNormB)) / (puckA.mass + puckB.mass);
-                        const m2 = table.collisionEfficiency * ((dpNormB * (puckB.mass - puckA.mass)) + (2.0 * puckA.mass * dpNormA)) / (puckA.mass + puckB.mass);
-    
+                        let m1 = ((dpNormA * (puckA.mass - puckB.mass)) + (2.0 * puckB.mass * dpNormB)) / (puckA.mass + puckB.mass);
+                        let m2 = ((dpNormB * (puckB.mass - puckA.mass)) + (2.0 * puckA.mass * dpNormA)) / (puckA.mass + puckB.mass);
+                        m1 -= ((1 - table.collisionEfficiency) / fps) * m1;
+                        m2 -= ((1 - table.collisionEfficiency) / fps) * m2;
+
                         // Update puck velocities
                         puckA.velocity.x = (tangent.x * dpTanA) + (normal.x * m1);
                         puckA.velocity.y = (tangent.y * dpTanA) + (normal.y * m1);

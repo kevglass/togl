@@ -1183,6 +1183,8 @@ export namespace physics {
         verticalGap: number;
         /** True if the pucks are at rest */
         atRest: boolean;
+        /** The minimum velocity pucks can move before being consider stopped */
+        minimumVelocity: number;
     }
 
     /**
@@ -1203,6 +1205,8 @@ export namespace physics {
         data: any;
         /** True if the puck can pass through any edge gap */
         canUseGap: boolean;
+        /** Out of gap */
+        outOfGap: boolean;
     }
 
     /**
@@ -1238,7 +1242,8 @@ export namespace physics {
             collisionEfficiency: collisionEfficiency ?? 1,
             horizontalGap: 0,
             verticalGap: 0,
-            atRest: true
+            atRest: true,
+            minimumVelocity: 0.5
         };
     }
 
@@ -1252,7 +1257,7 @@ export namespace physics {
      * @returns The newly create puck
      */
     export function createPuck(table: Table, x: number, y: number, radius: number, data?: any): Puck {
-        return { id: table.nextId++, position: newVec2(x, y), radius, velocity: newVec2(0, 0), mass: radius * 10, data: data ?? null, canUseGap: false };
+        return { id: table.nextId++, position: newVec2(x, y), radius, velocity: newVec2(0, 0), mass: radius * 10, data: data ?? null, canUseGap: false, outOfGap: false };
     }
 
     /**
@@ -1266,13 +1271,12 @@ export namespace physics {
         const collisions: PuckCollision[] = [];
         const pucksRemoved: number[] = [];
 
-        const restTolerance = 0.1;
         table.atRest = true;
 
         // move all the pucks
         for (const puck of [...table.pucks]) {
             // apply global friction
-            if (Math.abs(puck.velocity.x) + Math.abs(puck.velocity.y) < restTolerance) {
+            if (Math.abs(puck.velocity.x) + Math.abs(puck.velocity.y) < table.minimumVelocity) {
                 puck.velocity.x = 0;
                 puck.velocity.y = 0;
                 continue;
@@ -1288,9 +1292,19 @@ export namespace physics {
             const dx = Math.abs((table.x + (table.width / 2)) - puck.position.x);
             const dy = Math.abs((table.y + (table.height / 2)) - puck.position.y);
 
+            if (puck.canUseGap) {
+                if (dx < table.horizontalGap && (puck.position.y < table.y || puck.position.y > table.y + table.height)) {
+                    // gone out of bounds through the gap
+                    puck.outOfGap = true;
+                }
+                if (dy < table.verticalGap && (puck.position.x < table.x || puck.position.x > table.x + table.width)) {
+                    // gone out of bounds through the gap
+                    puck.outOfGap = true;
+                }
+            }
             if (!puck.canUseGap || dx > table.horizontalGap && dy > table.verticalGap) {
                 // deal with bouncing off table edges
-                if (table.enclosed) {
+                if (table.enclosed && !puck.outOfGap) {
                     let collision = false;
                     if (puck.position.x < table.x + puck.radius && puck.velocity.x < 0) {
                         puck.velocity.x = -puck.velocity.x;
@@ -1317,7 +1331,7 @@ export namespace physics {
                         puck.velocity.x -= ((1 - table.collisionEfficiency) / fps) * puck.velocity.x;
                         puck.velocity.y -= ((1 - table.collisionEfficiency) / fps) * puck.velocity.y;
                     }
-                } else {
+                } else if (!table.enclosed) {
                     if ((puck.position.x < table.x - puck.radius) ||
                         (puck.position.x > table.x + table.width + puck.radius) ||
                         (puck.position.y < table.y - puck.radius) ||

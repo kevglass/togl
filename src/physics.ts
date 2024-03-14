@@ -1257,7 +1257,7 @@ export namespace physics {
      * @returns The newly create puck
      */
     export function createPuck(table: Table, x: number, y: number, radius: number, data?: any): Puck {
-        return { id: table.nextId++, position: newVec2(x, y), radius, velocity: newVec2(0, 0), mass: radius * 10, data: data ?? null, canUseGap: false, outOfGap: false };
+        return { id: table.nextId++, position: newVec2(x, y), radius, velocity: newVec2(0, 0), mass: radius * radius, data: data ?? null, canUseGap: false, outOfGap: false };
     }
 
     /**

@@ -216,7 +216,7 @@ export namespace graphics {
         sound.resumeAudioOnInput();
         canvas.focus();
 
-        if (event.touches.length === 2) {
+        if (event.touches.length === 2 && eventListener?.zoomChanged) {
             scaling = true;
             scaleStartDist = Math.hypot(
                 event.touches[0].pageX - event.touches[1].pageX,
@@ -259,14 +259,12 @@ export namespace graphics {
     canvas.addEventListener("touchmove", (event) => {
         sound.resumeAudioOnInput();
 
-        if (scaling) {
+        if (scaling && event.touches.length === 2 && eventListener?.zoomChanged) {
             const dist = Math.hypot(
                 event.touches[0].pageX - event.touches[1].pageX,
                 event.touches[0].pageY - event.touches[1].pageY);
-            if (eventListener?.zoomChanged) {
-                eventListener?.zoomChanged(scaleStartDist - dist);
-                scaleStartDist = dist;
-            }
+            eventListener?.zoomChanged(scaleStartDist - dist);
+            scaleStartDist = dist;
         } else {
             for (const touch of event.changedTouches) {
                 eventListener?.mouseDrag(touch.clientX, touch.clientY, touch.identifier);

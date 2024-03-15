@@ -215,8 +215,8 @@ export namespace physics {
      * @param staticOnly Only include static bodies
      * @returns The minimum and maximum coordinates of any body in the world
      */
-    export function getWorldBounds(world: World, staticOnly = false): { min: Vector2, max: Vector2 } {
-        const bodies = staticOnly ? world.staticBodies : allBodies(world);
+    export function getWorldBounds(world: World, staticOnly = false, dynamics: DynamicRigidBody[]): { min: Vector2, max: Vector2 } {
+        const bodies = staticOnly ? world.staticBodies : allBodies(world, dynamics);
 
         if (bodies.length === 0) {
             return {

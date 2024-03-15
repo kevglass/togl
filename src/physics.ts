@@ -1182,8 +1182,6 @@ export namespace physics {
         horizontalGap: number;
         /** vertical gap in left and right edge */
         verticalGap: number;
-        /** True if the pucks are at rest */
-        atRest: boolean;
         /** The minimum velocity pucks can move before being consider stopped */
         minimumVelocity: number;
     }
@@ -1243,9 +1241,12 @@ export namespace physics {
             collisionEfficiency: collisionEfficiency ?? 1,
             horizontalGap: 0,
             verticalGap: 0,
-            atRest: true,
             minimumVelocity: 0.5
         };
+    }
+
+    export function tableAtRest(table: Table, dynamics?: Puck[]): boolean {
+        return (dynamics ?? table.pucks).find(p => p.velocity.x !== 0 || p.velocity.y !== 0) != undefined;
     }
 
     /**
@@ -1268,14 +1269,12 @@ export namespace physics {
      * @param table The table being simulated
      * @returns Collisions and puck removals that happened in this step
      */
-    export function tableStep(fps: number, table: Table): { collisions: PuckCollision[], pucksRemoved: number[] } {
+    export function tableStep(fps: number, table: Table, dynamics?: Puck[]): { collisions: PuckCollision[], pucksRemoved: number[] } {
         const collisions: PuckCollision[] = [];
         const pucksRemoved: number[] = [];
 
-        table.atRest = true;
-
         // move all the pucks
-        for (const puck of [...table.pucks]) {
+        for (const puck of [...(dynamics ?? table.pucks)]) {
             // apply global friction
             if (Math.abs(puck.velocity.x) + Math.abs(puck.velocity.y) < table.minimumVelocity) {
                 puck.velocity.x = 0;
@@ -1283,7 +1282,6 @@ export namespace physics {
                 continue;
             }
 
-            table.atRest = false;
             puck.velocity.x -= (puck.velocity.x * table.friction) / fps;
             puck.velocity.y -= (puck.velocity.y * table.friction) / fps;
             puck.position.x += puck.velocity.x / fps;
@@ -1337,7 +1335,7 @@ export namespace physics {
                         (puck.position.x > table.x + table.width + puck.radius) ||
                         (puck.position.y < table.y - puck.radius) ||
                         (puck.position.y > table.y + table.height + puck.radius)) {
-                        table.pucks.splice(table.pucks.indexOf(puck), 1);
+                        (dynamics ?? table.pucks).splice((dynamics ?? table.pucks).indexOf(puck), 1);
                         table.pucksRemoved.push(puck);
                         pucksRemoved.push(puck.id);
                     }
@@ -1347,8 +1345,8 @@ export namespace physics {
 
         // 10 iterations for collision resolution
         for (let i = 0; i < 10; i++) {
-            for (const puckA of table.pucks) {
-                for (const puckB of table.pucks) {
+            for (const puckA of (dynamics ?? table.pucks)) {
+                for (const puckB of (dynamics ?? table.pucks)) {
                     if (puckA === puckB) {
                         continue;
                     }

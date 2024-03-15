@@ -1246,7 +1246,7 @@ export namespace physics {
     }
 
     export function tableAtRest(table: Table, dynamics?: Puck[]): boolean {
-        return (dynamics ?? table.pucks).find(p => p.velocity.x !== 0 || p.velocity.y !== 0) != undefined;
+        return (dynamics ?? table.pucks).find(p => p.velocity.x !== 0 && p.velocity.y !== 0) == undefined;
     }
 
     /**

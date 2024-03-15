@@ -168,8 +168,8 @@ export namespace physics {
      * @param world The world containing the bodies
      * @returns The list of bodies in the world
      */
-    export function allBodies(world: World): Body[] {
-        return [...world.dynamicBodies, ...world.staticBodies, ...world.disabledBodies];
+    export function allBodies(world: World, dynamics?: DynamicRigidBody[]): Body[] {
+        return [...(dynamics ?? world.dynamicBodies), ...world.staticBodies, ...world.disabledBodies];
     }
 
     /**
@@ -178,14 +178,14 @@ export namespace physics {
      * @param world The world containing the bodies
      * @returns The list of bodies in the world
      */
-    export function enabledBodies(world: World): Body[] {
-        return [...world.dynamicBodies, ...world.staticBodies];
+    export function enabledBodies(world: World, dynamics?: DynamicRigidBody[]): Body[] {
+        return [...(dynamics ?? world.dynamicBodies), ...world.staticBodies];
     }
 
-    export function disableBody(world: World, body: Body): void {
-        const dynamicBodiesId = world.dynamicBodies.findIndex((b) => b.id === body.id);
+    export function disableBody(world: World, body: Body, dynamics?: DynamicRigidBody[]): void {
+        const dynamicBodiesId = (dynamics ?? world.dynamicBodies).findIndex((b) => b.id === body.id);
         if (dynamicBodiesId !== -1) {
-            world.dynamicBodies.splice(dynamicBodiesId, 1);
+            (dynamics ?? world.dynamicBodies).splice(dynamicBodiesId, 1);
         }
         const staticBodiesId = world.staticBodies.findIndex((b) => b.id === body.id);
         if (staticBodiesId !== -1) {
@@ -196,9 +196,9 @@ export namespace physics {
         }
     }
 
-    export function enableBody(world: World, body: Body): void {
-        if (!body.static && !world.dynamicBodies.includes(body)) {
-            world.dynamicBodies.push(body);
+    export function enableBody(world: World, body: Body, dynamics?: DynamicRigidBody[]): void {
+        if (!body.static && !(dynamics ?? world.dynamicBodies).find((b) => b.id === body.id)) {
+            (dynamics ?? world.dynamicBodies).push(body);
         }
         if (body.static && !world.staticBodies.includes(body)) {
             world.staticBodies.push(body);
@@ -419,13 +419,14 @@ export namespace physics {
      * in length.
      * @param world The world to step 
      */
-    export function worldStep(fps: number, world: World): Collision[] {
-        const allEnabled = enabledBodies(world);
-        const all = allBodies(world);
-        const collisions: Collision[] = [];
-        world.frameCount++;
+    export function worldStep(fps: number, world: World, dynamics?: DynamicRigidBody[]): Collision[] {
+        dynamics = dynamics ?? world.dynamicBodies;
 
-        for (const body of world.dynamicBodies) {
+        const allEnabled = enabledBodies(world, dynamics);
+        const all = allBodies(world, dynamics);
+        const collisions: Collision[] = [];
+
+        for (const body of dynamics) {
             if (!body.velocity && !body.acceleration) {
                 continue
             }
@@ -437,7 +438,7 @@ export namespace physics {
         }
 
         // apply velocity to try and maintain joints
-        for (const body of world.dynamicBodies) {
+        for (const body of dynamics) {
             const joints = world.joints.filter(j => j.bodyA === body.id || j.bodyB === body.id);
             for (const joint of joints) {
                 const otherId = joint.bodyA === body.id ? joint.bodyB : joint.bodyA;
@@ -479,10 +480,10 @@ export namespace physics {
         for (let k = 9; k--;) {
             let collision = false;
 
-            for (let i = world.dynamicBodies.length; i--;) {
+            for (let i = dynamics.length; i--;) {
 
                 // Only moving objects can collide if they didn't last worldStep
-                const bodyI = world.dynamicBodies[i];
+                const bodyI = dynamics[i];
                 if (!bodyI.velocity) {
                     continue
                 }
@@ -535,7 +536,7 @@ export namespace physics {
             }
         }
 
-        for (const body of world.dynamicBodies) {
+        for (const body of dynamics) {
             body.restingTime += 1 / fps;
 
             if (Math.abs(body.center.x - body.averageCenter.x) > 1) {
@@ -562,8 +563,8 @@ export namespace physics {
      * @param forSeconds The number of seconds a body must be at rest to be considered stopped
      * @returns True if all bodies are at rest
      */
-    export function atRest(world: World, forSeconds: number = 1): boolean {
-        return !world.dynamicBodies.find(b => b.restingTime < forSeconds);
+    export function atRest(world: World, forSeconds: number = 1, dynamics?: DynamicRigidBody[]): boolean {
+        return !(dynamics ?? world.dynamicBodies).find(b => b.restingTime < forSeconds);
     }
 
     /**
@@ -754,11 +755,11 @@ export namespace physics {
      * @param world The world to which the body should be added
      * @param body The body to add
      */
-    export function addBody(world: World, body: Body): void {
+    export function addBody(world: World, body: Body, dynamics?: DynamicRigidBody[]): void {
         if (body.static) {
             world.staticBodies.push(body)
         } else {
-            world.dynamicBodies.push(body)
+            (dynamics ?? world.dynamicBodies).push(body)
         }
     }
 
@@ -768,8 +769,8 @@ export namespace physics {
      * @param world The world from which the body should be removed
      * @param body The body to remove
      */
-    export function removeBody(world: World, body: Body): void {
-        const list = (body.static ? world.staticBodies : world.dynamicBodies);
+    export function removeBody(world: World, body: Body, dynamics?: DynamicRigidBody[]): void {
+        const list = (body.static ? world.staticBodies : (dynamics ?? world.dynamicBodies));
         const index = list.findIndex(b => b.id == body.id);
         if (index >= 0) {
             list.splice(index, 1);

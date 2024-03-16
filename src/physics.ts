@@ -1329,6 +1329,10 @@ export namespace physics {
                     if (collision) {
                         puck.velocity.x -= ((1 - table.collisionEfficiency) / fps) * puck.velocity.x;
                         puck.velocity.y -= ((1 - table.collisionEfficiency) / fps) * puck.velocity.y;
+                        collisions.push({
+                            puckIdA: puck.id,
+                            puckIdB: -1
+                        });
                     }
                 } else if (!table.enclosed) {
                     if ((puck.position.x < table.x - puck.radius) ||

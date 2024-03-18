@@ -46,6 +46,9 @@ import { translate as tr } from "./translate";
  */
 export namespace graphics {
     const canvas = document.getElementById("gamecanvas") as HTMLCanvasElement;
+    if (!canvas) {
+        throw "TOGL assumes you have a canvas with the ID 'gamecanvas' that you'll render to";
+    }
     let eventListener: Game | undefined;
     let mouseDown = false;
     let scaling = false;

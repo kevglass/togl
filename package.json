@@ -1,5 +1,5 @@
 {
-  "name": "togl",
+  "name": "toglib",
   "version": "1.1.1",
   "description": "Tiny Open Game Library",
   "main": "dist/index.js",

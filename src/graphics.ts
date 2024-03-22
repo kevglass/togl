@@ -543,6 +543,7 @@ export namespace graphics {
          * regenerate any resources.
          */
         resize(): void;
+
     }
 
     let currentRenderer: Renderer;
@@ -630,6 +631,31 @@ export namespace graphics {
      */
     export function loadImage(url: string, track = true, id?: string, smooth?: boolean): GameImage {
         return currentRenderer.loadImage(url, track, id, smooth);
+    }
+
+    /**
+     * Draw a rectangle using the nine-patch method
+     * 
+     * @param tiles The tile set containing the nine-patch
+     * @param x The x co-ordinate fo the top left of the rectangle
+     * @param y The y co-ordinate fo the top left of the rectangle
+     * @param width The width of the rectangle to draw
+     * @param height The height of the rectangle to draw
+     * @param col The color tint to apply
+     */
+    export function ninePatch(tiles: graphics.TileSet, x: number, y: number, width: number, height: number, col?: string): void {
+        graphics.drawTile(tiles, x + tiles.tileWidth, y + tiles.tileHeight, 4, width - (tiles.tileWidth * 2), height - (tiles.tileHeight * 2), col);
+        
+        graphics.drawTile(tiles, x + tiles.tileWidth, y, 1, width - (tiles.tileWidth * 2), tiles.tileHeight, col);
+        graphics.drawTile(tiles, x + tiles.tileWidth, y + height - tiles.tileHeight, 7, width - (tiles.tileWidth * 2),tiles.tileHeight, col);
+        graphics.drawTile(tiles, x, y + tiles.tileHeight, 3, tiles.tileWidth, height - (tiles.tileHeight * 2), col);
+        graphics.drawTile(tiles, x + width - tiles.tileWidth, y + tiles.tileHeight, 5, tiles.tileWidth, height - (tiles.tileHeight * 2), col);
+        
+        graphics.drawTile(tiles, x, y, 0, tiles.tileWidth, tiles.tileHeight, col);
+        graphics.drawTile(tiles, x + width - tiles.tileWidth, y, 2, tiles.tileWidth, tiles.tileHeight, col);
+
+        graphics.drawTile(tiles, x, y + height - tiles.tileHeight, 6, tiles.tileWidth, tiles.tileHeight, col);
+        graphics.drawTile(tiles, x + width - tiles.tileWidth, y + height - tiles.tileHeight, 8, tiles.tileWidth, tiles.tileHeight, col);
     }
 
     /**

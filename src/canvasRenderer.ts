@@ -9,7 +9,8 @@ let mainCtx: CanvasRenderingContext2D;
 const scaledImageCache: Record<string, Record<number, CanvasImageSource>> = {};
 
 declare let InstallTrigger: any;
-var isFirefox = typeof InstallTrigger !== 'undefined';
+const isFirefox = typeof InstallTrigger !== 'undefined';
+let saves = 0;
 
 interface CanvasOffscreen extends graphics.Offscreen {
     canvas: HTMLCanvasElement;

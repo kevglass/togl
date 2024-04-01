@@ -215,6 +215,14 @@ export const webglRenderer: graphics.Renderer = {
     },
 
     postRender(): void {
+        if (saves !== 0) {
+            console.log("Push/Pop unbalanced - popping all old state");
+            const popCount = saves;
+            for (let i=0;i<popCount;i++) {
+                this.pop();
+            }
+        }
+        
         renderEnd();
         if (drawsPerFrame !== 0) {
             lastDrawsPerFrame = drawsPerFrame;

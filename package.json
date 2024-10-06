@@ -1,6 +1,6 @@
 {
   "name": "toglib",
-  "version": "1.2.2",
+  "version": "1.2.3",
   "description": "Tiny Open Game Library",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

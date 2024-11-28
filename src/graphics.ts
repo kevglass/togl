@@ -4,6 +4,7 @@ import { sound } from "./sound";
 import { webglRenderer } from "./webglRenderer";
 import { translate as tr } from "./translate";
 
+
 // This is a very brute force simple renderer. It's just blitting images and text to 
 // a canvas. It's wrapped with a view to replacing it with something decent
 
@@ -54,6 +55,18 @@ export namespace graphics {
     let scaling = false;
     let scaleStartDist = 0;
     let resourceLoadedReported = false;
+
+    export const DEFAULT_CHAR_SET = 
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZ" +
+    "abcdefghijklmnopqrstuvwxyz" +
+    "0123456789.,;:?!\"'+-=*%_()" +
+    "[]{}~#&@©®™°^`|/\<>…€$£¢¿¡" +
+    "“”‘’«»‹›„‚·•ÀÁÂÄÃÅÆÇÐÈÉÊËÌ" +
+    "ÍÎÏÑÒÓÔÖÕØŒÙÚÛÜÝŸÞẞàáâäãåæ" +
+    "çðèéêëìíîïñòóôöõøœùúûüýÿþß" +
+    "АБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШ" +
+    "ЩЪЫЬЭЮЯабвгдеёжзийклмнопрс" +
+    "туфхцчшщъыьэюя";
 
     /** 
      * The width assigned to a set of characters in a font
@@ -680,23 +693,13 @@ export namespace graphics {
      * @param charset The list of characters to render
      * @returns A newly generate font that contains the character specified
      */
-    export function generateFont(size: number, col: string, charset?: string): GameFont {
-        const characterSet = charset ??
-            "ABCDEFGHIJKLMNOPQRSTUVWXYZ" +
-            "abcdefghijklmnopqrstuvwxyz" +
-            "0123456789.,;:?!\"'+-=*%_()" +
-            "[]{}~#&@©®™°^`|/\<>…€$£¢¿¡" +
-            "“”‘’«»‹›„‚·•ÀÁÂÄÃÅÆÇÐÈÉÊËÌ" +
-            "ÍÎÏÑÒÓÔÖÕØŒÙÚÛÜÝŸÞẞàáâäãåæ" +
-            "çðèéêëìíîïñòóôöõøœùúûüýÿþß" +
-            "АБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШ" +
-            "ЩЪЫЬЭЮЯабвгдеёжзийклмнопрс" +
-            "туфхцчшщъыьэюя";
+    export function generateFont(size: number, col: string, charset?: string, fontName: string = "Fira Sans"): GameFont {
+        const characterSet = charset ?? DEFAULT_CHAR_SET
 
         const canvas = document.createElement("canvas");
         const ctx = canvas.getContext("2d")!;
         ctx.fillStyle = col;
-        ctx.font = "bold " + size + "px \"Fira Sans\", sans-serif";
+        ctx.font = "bold " + size + "px \"" + fontName + "\", sans-serif";
 
         const widths: FontCharacterWidths = [];
 

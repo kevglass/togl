@@ -700,7 +700,6 @@ export namespace graphics {
         const ctx = canvas.getContext("2d")!;
         ctx.fillStyle = col;
         ctx.font = style + " " + size + "px \"" + fontName + "\"";
-
         const widths: FontCharacterWidths = [];
 
         let tw = 0;
@@ -710,7 +709,7 @@ export namespace graphics {
         for (let i = 0; i < characterSet.length; i++) {
             const metrics = ctx.measureText(characterSet[i]);
             const width = Math.ceil(metrics.width);
-            const height = Math.ceil(metrics.fontBoundingBoxAscent + metrics.fontBoundingBoxDescent);
+            const height = Math.ceil(metrics.actualBoundingBoxAscent + metrics.actualBoundingBoxDescent);
             const bl = Math.ceil(metrics.actualBoundingBoxAscent);
 
             tw = Math.max(width, tw);
@@ -729,9 +728,9 @@ export namespace graphics {
         th += 1;
         canvas.width = 26 * tw;
         canvas.height = Math.ceil(characterSet.length / 26) * th;
-        ctx.fillStyle = col;
-        ctx.font = "bold " + size + "px \"Fira Sans\", sans-serif";
 
+        ctx.fillStyle = col;
+        ctx.font = style + " " + size + "px \"" + fontName + "\"";
         for (let i = 0; i < characterSet.length; i++) {
             const xp = (i % 26) * tw;
             const yp = (Math.floor(i / 26) * th) + baseline - 1;

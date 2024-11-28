@@ -693,13 +693,13 @@ export namespace graphics {
      * @param charset The list of characters to render
      * @returns A newly generate font that contains the character specified
      */
-    export function generateFont(size: number, col: string, charset?: string, fontName: string = "Fira Sans"): GameFont {
+    export function generateFont(size: number, col: string, charset?: string, fontName: string = "Fira Sans, sans-serif", style: string = "bold"): GameFont {
         const characterSet = charset ?? DEFAULT_CHAR_SET
 
         const canvas = document.createElement("canvas");
         const ctx = canvas.getContext("2d")!;
         ctx.fillStyle = col;
-        ctx.font = "bold " + size + "px \"" + fontName + "\", sans-serif";
+        ctx.font = style + " " + size + "px \"" + fontName + "\"";
 
         const widths: FontCharacterWidths = [];
 

@@ -734,21 +734,21 @@ export namespace graphics {
         th += 1;
         canvas.width = 26 * tw;
         canvas.height = Math.ceil(characterSet.length / 26) * th;
-
-        if (typeof col === "string") {
-            ctx.fillStyle = col;
-        } else {
-            const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height)
-            for (const stop of col) {
-                gradient.addColorStop(stop.offset * canvas.height, stop.col)
-            }
-            
-            ctx.fillStyle = gradient;
-        }
+        
         ctx.font = style + " " + size + "px \"" + fontName + "\"";
         for (let i = 0; i < characterSet.length; i++) {
             const xp = (i % 26) * tw;
             const yp = (Math.floor(i / 26) * th) + baseline - 1;
+            if (typeof col === "string") {
+                ctx.fillStyle = col;
+            } else {
+                const gradient = ctx.createLinearGradient(0, (Math.floor(i / 26) * th), 0, (Math.floor(i / 26) * th) + th)
+                for (const stop of col) {
+                    gradient.addColorStop(stop.offset, stop.col)
+                }
+                
+                ctx.fillStyle = gradient;
+            }
             ctx.fillText(characterSet[i], xp, yp);
         }
 

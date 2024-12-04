@@ -684,6 +684,11 @@ export namespace graphics {
         return currentRenderer.loadTileSet(url, tw, th, id);
     }
 
+    export type GradientStop = {
+        offset: number,
+        col: string
+    }
+
     /**
      * Generate an image that contains the glyphs from a font. It's considerably quicker
      * to render images than glyphs.
@@ -693,12 +698,13 @@ export namespace graphics {
      * @param charset The list of characters to render
      * @returns A newly generate font that contains the character specified
      */
-    export function generateFont(size: number, col: string | CanvasGradient | CanvasPattern, charset?: string, fontName: string = "Fira Sans, sans-serif", style: string = "bold"): GameFont {
+    export function generateFont(size: number, col: string | GradientStop[], charset?: string, fontName: string = "Fira Sans, sans-serif", style: string = "bold"): GameFont {
         const characterSet = charset ?? DEFAULT_CHAR_SET
 
         const canvas = document.createElement("canvas");
         const ctx = canvas.getContext("2d")!;
-        ctx.fillStyle = col;
+
+        ctx.fillStyle = typeof col === "string" ? col : "white";
         ctx.font = style + " " + size + "px \"" + fontName + "\"";
         const widths: FontCharacterWidths = [];
 
@@ -729,7 +735,16 @@ export namespace graphics {
         canvas.width = 26 * tw;
         canvas.height = Math.ceil(characterSet.length / 26) * th;
 
-        ctx.fillStyle = col;
+        if (typeof col === "string") {
+            ctx.fillStyle = col;
+        } else {
+            const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height)
+            for (const stop of col) {
+                gradient.addColorStop(stop.offset * canvas.height, stop.col)
+            }
+            
+            ctx.fillStyle = gradient;
+        }
         ctx.font = style + " " + size + "px \"" + fontName + "\"";
         for (let i = 0; i < characterSet.length; i++) {
             const xp = (i % 26) * tw;

@@ -731,10 +731,10 @@ export namespace graphics {
         }
 
         tw += 1;
-        th += 1;
+        th += 5;
         canvas.width = 26 * tw;
         canvas.height = Math.ceil(characterSet.length / 26) * th;
-        
+
         ctx.font = style + " " + size + "px \"" + fontName + "\"";
         for (let i = 0; i < characterSet.length; i++) {
             const xp = (i % 26) * tw;
